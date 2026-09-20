@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Compartir pantalla</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+        background: #111b21;
+        color: #e9edef;
+      }
+      h1 {
+        font-size: 14px;
+        font-weight: normal;
+        padding: 12px 16px 0;
+        margin: 0;
+      }
+      #grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        padding: 16px;
+      }
+      button.source {
+        background: #202c33;
+        border: 2px solid transparent;
+        border-radius: 6px;
+        padding: 6px;
+        cursor: pointer;
+        color: inherit;
+        text-align: left;
+      }
+      button.source:hover {
+        border-color: #00a884;
+      }
+      button.source img {
+        width: 100%;
+        border-radius: 4px;
+        display: block;
+      }
+      button.source span {
+        display: block;
+        font-size: 11px;
+        margin-top: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Elegí qué compartir</h1>
+    <div id="grid"></div>
+    <script src="picker.js"></script>
+  </body>
+</html>
