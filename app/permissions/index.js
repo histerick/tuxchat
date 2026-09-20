@@ -5,11 +5,18 @@ const ALLOWED_ORIGIN = 'https://web.whatsapp.com';
 // 'media' covers both getUserMedia (camera/mic for calls) and
 // getDisplayMedia (screen share). Without granting it explicitly here,
 // Electron's default handler denies it and calls fail silently in the UI.
+//
+// 'persistent-storage' covers WhatsApp Web's navigator.storage.persist()
+// call. Without it, Chromium logs "storage bucket persistence denied" and
+// treats the origin's IndexedDB/cache as best-effort instead of
+// protected — under storage/memory pressure it can get evicted, which can
+// surface as the chat silently reloading mid-session.
 const ALLOWED_PERMISSIONS = new Set([
   'media',
   'notifications',
   'clipboard-read',
   'clipboard-sanitized-write',
+  'persistent-storage',
 ]);
 
 // Electron passes requestingOrigin with a trailing slash to the permission
