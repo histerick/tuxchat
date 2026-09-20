@@ -165,7 +165,9 @@ function buildLauncherScript({ profileName, userDataDir, desktopId }) {
   // first argument, same as the hand-written launchers. A packaged build's
   // executable already knows its own app, so this is skipped there.
   if (!app.isPackaged) parts.push(shQuote(app.getAppPath()));
-  parts.push('--ozone-platform=x11');
+  // No --ozone-platform=x11 here: app/index.js detects NVIDIA+Wayland at
+  // startup and re-execs itself with that flag only when it's actually
+  // needed, regardless of how it was launched.
   parts.push(`--user-data-dir=${shQuote(userDataDir)}`);
   parts.push(`--class=${desktopId}`);
   parts.push(`--profile-name=${shQuote(profileName)}`);

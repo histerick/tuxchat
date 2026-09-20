@@ -12,7 +12,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start": "electron . --ozone-platform=x11",
+    "start": "electron .",
     "lint": "eslint .",
     "format": "prettier --write .",
     "dist": "electron-builder"
@@ -36,8 +36,7 @@
       "target": ["AppImage", "deb"],
       "category": "Network",
       "icon": "build/icon.png",
-      "syncDesktopName": true,
-      "executableArgs": ["--ozone-platform=x11"]
+      "syncDesktopName": true
     }
   }
 }

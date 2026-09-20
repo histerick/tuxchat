@@ -5,7 +5,6 @@
 # window's WM_CLASS so the dock doesn't group it with the first profile.
 
 exec electron /home/erick/Proyectos/tuxchat \
-  --ozone-platform=x11 \
   --user-data-dir="$HOME/.config/tuxchat-work" \
   --class=tuxchat-work \
   --profile-name=Trabajo

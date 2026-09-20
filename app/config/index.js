@@ -25,9 +25,12 @@ function getConfig() {
     appName: profileName ? `TuxChat - ${profileName}` : 'TuxChat',
     appIcon: args['app-icon'] || path.join(__dirname, '..', '..', 'build', 'icon.png'),
     url: args['url'] || 'https://web.whatsapp.com',
-    // Validated on this machine: NVIDIA + Wayland crashes Chromium-based
-    // apps ("Aw, Snap"); x11 is the known-good default here.
-    ozonePlatform: args['ozone-platform'] || 'x11',
+    // No default here on purpose: forcing x11 for everyone would degrade
+    // Wayland-native AMD/Intel users who don't need it. app/index.js
+    // decides whether to force it (NVIDIA + Wayland only) before this
+    // even runs, and passes it as a real --ozone-platform flag when it
+    // does — this just picks that up if present.
+    ozonePlatform: args['ozone-platform'] || null,
   };
 }
 
