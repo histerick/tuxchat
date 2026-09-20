@@ -36,7 +36,8 @@
       "target": ["AppImage", "deb"],
       "category": "Network",
       "icon": "build/icon.png",
-      "syncDesktopName": true
+      "syncDesktopName": true,
+      "executableArgs": ["--ozone-platform=x11"]
     }
   }
 }
