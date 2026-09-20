@@ -22,7 +22,7 @@ function getConfig() {
 
   return {
     profileName,
-    appName: profileName ? `WhatsApp - ${profileName}` : 'WhatsApp',
+    appName: profileName ? `TuxChat - ${profileName}` : 'TuxChat',
     appIcon: args['app-icon'] || path.join(__dirname, '..', '..', 'build', 'icon.png'),
     url: args['url'] || 'https://web.whatsapp.com',
     // Validated on this machine: NVIDIA + Wayland crashes Chromium-based

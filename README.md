@@ -1,4 +1,4 @@
-# whatsapp-linux-app
+# TuxChat
 
 Cliente de escritorio no oficial de WhatsApp Web para Linux (Electron), con
 soporte completo de llamadas/video y screen share, y múltiples sesiones
@@ -16,8 +16,8 @@ npm start
 Segunda sesión aislada (ejemplo):
 
 ```bash
-npm start -- --user-data-dir=$HOME/.config/whatsapp-linux-app-work --class=whatsapp-linux-app-work --profile-name=Trabajo
+npm start -- --user-data-dir=$HOME/.config/tuxchat-work --class=tuxchat-work --profile-name=Trabajo
 ```
 
 La bitácora de desarrollo detallada vive fuera de este repo mientras el
-proyecto madura; ver `whatsapp-linux-app.md` en el equipo de desarrollo.
+proyecto madura; ver `tuxchat.md` en el equipo de desarrollo.

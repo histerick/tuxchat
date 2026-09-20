@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Tux Chat Linux messaging icon">
+  <defs>
+    <linearGradient id="bg" x1="80" y1="40" x2="430" y2="480" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#27d27d"/>
+      <stop offset=".52" stop-color="#12b978"/>
+      <stop offset="1" stop-color="#078b70"/>
+    </linearGradient>
+    <linearGradient id="beak" x1="256" y1="206" x2="256" y2="254" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffc21a"/>
+      <stop offset="1" stop-color="#f28a00"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect x="24" y="24" width="464" height="464" rx="104" fill="url(#bg)"/>
+
+  <!-- Penguin body -->
+  <path d="M256 132
+           C204 132 181 166 180 218
+           C179 256 163 279 137 311
+           C119 333 106 359 99 388
+           L165 365
+           C183 405 216 425 256 425
+           C296 425 329 405 347 365
+           L413 388
+           C406 359 393 333 375 311
+           C349 279 333 256 332 218
+           C331 166 308 132 256 132Z"
+        fill="#17212b"/>
+
+  <!-- White belly/face -->
+  <path d="M256 184
+           C224 184 205 207 205 241
+           C205 268 190 286 177 310
+           C161 339 162 377 180 399
+           C198 421 224 432 256 432
+           C288 432 314 421 332 399
+           C350 377 351 339 335 310
+           C322 286 307 268 307 241
+           C307 207 288 184 256 184Z"
+        fill="#fff"/>
+
+  <!-- Eyes -->
+  <ellipse cx="229" cy="210" rx="22" ry="30" fill="#fff"/>
+  <ellipse cx="283" cy="210" rx="22" ry="30" fill="#fff"/>
+  <ellipse cx="232" cy="214" rx="10" ry="16" fill="#17212b"/>
+  <ellipse cx="280" cy="214" rx="10" ry="16" fill="#17212b"/>
+
+  <!-- Beak -->
+  <path d="M217 238 Q256 207 295 238 Q256 269 217 238Z" fill="url(#beak)"/>
+  <path d="M217 238 Q256 253 295 238 Q278 266 256 274 Q234 266 217 238Z"
+        fill="#f29400" opacity=".9"/>
+
+  <!-- Chat bubble, deliberately layered above penguin -->
+  <path d="M256 83
+           C157 83 77 151 77 236
+           C77 274 93 309 121 337
+           L91 423
+           L176 393
+           C201 404 228 410 256 410
+           C355 410 435 342 435 257
+           C435 161 355 83 256 83Z"
+        fill="none"
+        stroke="#fff"
+        stroke-width="24"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+</svg>

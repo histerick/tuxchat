@@ -12,14 +12,24 @@ const ALLOWED_PERMISSIONS = new Set([
   'clipboard-sanitized-write',
 ]);
 
+// Electron passes requestingOrigin with a trailing slash to the permission
+// check handler but not to the request handler — normalize through URL
+// instead of comparing raw strings, or the trailing slash alone makes
+// every check silently fail (mic/video/notifications all denied without
+// any visible error).
 function isAllowed(requestingOrigin, permission) {
-  return requestingOrigin === ALLOWED_ORIGIN && ALLOWED_PERMISSIONS.has(permission);
+  let origin;
+  try {
+    origin = new URL(requestingOrigin).origin;
+  } catch {
+    return false;
+  }
+  return origin === ALLOWED_ORIGIN && ALLOWED_PERMISSIONS.has(permission);
 }
 
 function registerPermissionHandlers(targetSession) {
   targetSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    const requestingOrigin = new URL(webContents.getURL()).origin;
-    callback(isAllowed(requestingOrigin, permission));
+    callback(isAllowed(webContents.getURL(), permission));
   });
 
   targetSession.setPermissionCheckHandler((_webContents, permission, requestingOrigin) =>

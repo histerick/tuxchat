@@ -4,8 +4,8 @@
 # --user-data-dir isolates cookies/localStorage, --class isolates the
 # window's WM_CLASS so the dock doesn't group it with the first profile.
 
-exec electron /home/erick/Proyectos/whatsapp-linux-app \
+exec electron /home/erick/Proyectos/tuxchat \
   --ozone-platform=x11 \
-  --user-data-dir="$HOME/.config/whatsapp-linux-app-work" \
-  --class=whatsapp-linux-app-work \
+  --user-data-dir="$HOME/.config/tuxchat-work" \
+  --class=tuxchat-work \
   --profile-name=Trabajo
