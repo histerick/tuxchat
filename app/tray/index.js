@@ -1,6 +1,7 @@
 'use strict';
 
-const { Tray, Menu, app } = require('electron');
+const { Tray, Menu, app, nativeImage } = require('electron');
+const fs = require('node:fs');
 
 function buildTrayMenu(mainWindow, appName) {
   return Menu.buildFromTemplate([
@@ -27,7 +28,14 @@ function buildTrayMenu(mainWindow, appName) {
 }
 
 function createTray(mainWindow, config) {
-  const tray = new Tray(config.appIcon);
+  // new Tray() throws synchronously if the icon file doesn't exist, which
+  // — since this runs inside app.whenReady().then() — turns into an
+  // unhandled promise rejection that silently aborts everything *after*
+  // it in that callback (menu setup, session self-context registration)
+  // with no visible error to the user. A missing icon should mean "no
+  // tray icon", not "half the app failed to start" — fall back instead.
+  const icon = fs.existsSync(config.appIcon) ? config.appIcon : nativeImage.createEmpty();
+  const tray = new Tray(icon);
   tray.setToolTip(config.appName);
   tray.setContextMenu(buildTrayMenu(mainWindow, config.appName));
 

@@ -31,7 +31,7 @@
     "directories": {
       "output": "dist"
     },
-    "files": ["app/**/*", "package.json"],
+    "files": ["app/**/*", "build/icon.png", "package.json"],
     "linux": {
       "target": ["AppImage", "deb"],
       "category": "Network",

@@ -44,6 +44,13 @@ if (!gotLock) {
     const tray = createTray(mainWindow, config);
     registerSelfContext(mainWindow, tray, config.profileName);
     buildMenu();
+  }).catch((err) => {
+    // Without this, a thrown error here becomes a silent unhandled
+    // promise rejection — the window can still open (created earlier in
+    // the chain) while menu/tray/session setup quietly never finishes,
+    // with nothing in the UI hinting that anything went wrong. Exactly
+    // what happened with the missing-icon bug this guards against.
+    console.error('Fallo al inicializar TuxChat:', err);
   });
 
   app.on('window-all-closed', () => {
