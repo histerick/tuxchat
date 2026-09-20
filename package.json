@@ -7,7 +7,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start": "electron .",
+    "start": "electron . --ozone-platform=x11",
     "lint": "eslint .",
     "format": "prettier --write .",
     "dist": "electron-builder"
