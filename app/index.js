@@ -7,6 +7,7 @@ const { registerPermissionHandlers } = require('./permissions');
 const { registerScreenSharing } = require('./screenSharing');
 const { createTray } = require('./tray');
 const { buildMenu } = require('./menus');
+const { registerSelfContext } = require('./sessions');
 
 const config = getConfig();
 
@@ -40,8 +41,9 @@ if (!gotLock) {
     registerScreenSharing(session.defaultSession);
 
     const mainWindow = createMainWindow(config);
+    const tray = createTray(mainWindow, config);
+    registerSelfContext(mainWindow, tray, config.profileName);
     buildMenu();
-    createTray(mainWindow, config);
   });
 
   app.on('window-all-closed', () => {

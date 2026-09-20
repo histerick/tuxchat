@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Eliminar sesión</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+        background: #111b21;
+        color: #e9edef;
+        padding: 16px;
+        box-sizing: border-box;
+        font-size: 16px;
+      }
+      h1 {
+        font-size: 18px;
+        font-weight: normal;
+        margin: 0 0 8px;
+      }
+      p {
+        font-size: 16px;
+        line-height: 1.5;
+        color: #d1d7db;
+        margin: 0 0 14px;
+      }
+      #list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 12px;
+        max-height: 180px;
+        overflow-y: auto;
+      }
+      .session-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #202c33;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 16px;
+      }
+      .session-row input[type='checkbox'] {
+        width: 16px;
+        height: 16px;
+        accent-color: #00a884;
+      }
+      #empty {
+        font-size: 16px;
+        color: #8696a0;
+      }
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      button.action {
+        background: #202c33;
+        border: none;
+        border-radius: 6px;
+        color: inherit;
+        padding: 8px 14px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      button#do-delete {
+        background: #f15c6d;
+        color: #111b21;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      #error {
+        color: #f15c6d;
+        font-size: 16px;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Eliminar sesión</h1>
+    <p>
+      Borra el inicio de sesión, la configuración y los datos guardados localmente para la sesión elegida, en esta
+      computadora. No afecta tu cuenta de WhatsApp ni los archivos ya compartidos o descargados, y no puede
+      deshacerse.
+    </p>
+    <div id="list"></div>
+    <p id="empty" hidden>No hay sesiones adicionales para eliminar.</p>
+    <p id="error" hidden></p>
+    <div class="actions">
+      <button class="action" id="select-mode">Seleccionar</button>
+      <button class="action" id="cancel-select" hidden>Cancelar</button>
+      <button class="action" id="do-delete" hidden disabled>Eliminar</button>
+    </div>
+    <script src="delete-dialog.js"></script>
+  </body>
+</html>

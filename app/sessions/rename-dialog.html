@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Renombrar sesión</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+        background: #111b21;
+        color: #e9edef;
+        padding: 16px;
+        box-sizing: border-box;
+        font-size: 16px;
+      }
+      h1 {
+        font-size: 18px;
+        font-weight: normal;
+        margin: 0 0 4px;
+      }
+      #hint {
+        font-size: 13px;
+        color: #8696a0;
+        margin: 0 0 16px;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        background: #202c33;
+        border: 1px solid #2a3942;
+        border-radius: 6px;
+        color: inherit;
+        padding: 8px 10px;
+        font-size: 16px;
+      }
+      input:focus {
+        outline: none;
+        border-color: #00a884;
+      }
+      #error {
+        color: #f15c6d;
+        font-size: 14px;
+        margin: 10px 0 0;
+      }
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 20px;
+      }
+      button {
+        background: #202c33;
+        border: none;
+        border-radius: 6px;
+        color: inherit;
+        padding: 8px 14px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      button#confirm {
+        background: #00a884;
+        color: #111b21;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Renombrar sesión</h1>
+    <p id="hint">Máximo 25 caracteres.</p>
+    <input id="name" type="text" maxlength="25" autofocus />
+    <p id="error" hidden></p>
+    <div class="actions">
+      <button id="cancel">Cancelar</button>
+      <button id="confirm">Renombrar</button>
+    </div>
+    <script src="rename-dialog.js"></script>
+  </body>
+</html>

@@ -28,6 +28,15 @@ function createMainWindow(config) {
   win.webContents.setUserAgent(DESKTOP_CHROME_UA);
   win.loadURL(config.url);
 
+  // Electron syncs the window title to the loaded page's document.title by
+  // default, and WhatsApp Web sets its own ("WhatsApp", or "(3) WhatsApp"
+  // for the unread badge) — which would silently overwrite our profile
+  // name and defeat the point of being able to tell sessions apart in the
+  // dock hover preview / Alt-Tab. Keep our own title pinned instead.
+  win.on('page-title-updated', (event) => {
+    event.preventDefault();
+  });
+
   // Hide to tray instead of quitting: WhatsApp Web needs to stay loaded
   // in the background to keep receiving calls/messages, same as the
   // official desktop client's behavior.

@@ -1,6 +1,7 @@
 'use strict';
 
 const { Menu, app } = require('electron');
+const { openAddSessionDialog, openDeleteSessionDialog, openRenameSessionDialog, canRenameSelf } = require('../sessions');
 
 function buildMenu() {
   const template = [
@@ -14,6 +15,24 @@ function buildMenu() {
             app.isQuitting = true;
             app.quit();
           },
+        },
+      ],
+    },
+    {
+      label: 'Sesiones',
+      submenu: [
+        {
+          label: 'Añadir sesión...',
+          click: () => openAddSessionDialog(),
+        },
+        {
+          label: 'Renombrar sesión...',
+          enabled: canRenameSelf(),
+          click: () => openRenameSessionDialog(),
+        },
+        {
+          label: 'Eliminar sesión...',
+          click: () => openDeleteSessionDialog(),
         },
       ],
     },

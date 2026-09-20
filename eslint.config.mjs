@@ -7,18 +7,25 @@ const nodeGlobals = {
   __dirname: 'readonly',
   console: 'readonly',
   URL: 'readonly',
+  setTimeout: 'readonly',
 };
 
 const browserGlobals = {
   window: 'readonly',
   document: 'readonly',
+  setTimeout: 'readonly',
 };
 
 export default [
   js.configs.recommended,
   {
     files: ['app/**/*.js', 'scripts/**/*.js'],
-    ignores: ['app/screenSharing/picker.js'],
+    ignores: [
+      'app/screenSharing/picker.js',
+      'app/sessions/dialog.js',
+      'app/sessions/delete-dialog.js',
+      'app/sessions/rename-dialog.js',
+    ],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'commonjs',
@@ -29,7 +36,12 @@ export default [
     },
   },
   {
-    files: ['app/screenSharing/picker.js'],
+    files: [
+      'app/screenSharing/picker.js',
+      'app/sessions/dialog.js',
+      'app/sessions/delete-dialog.js',
+      'app/sessions/rename-dialog.js',
+    ],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'script',
