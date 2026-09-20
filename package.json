@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Unofficial WhatsApp Web desktop client for Linux (Electron), with full call/screen-share support and multiple isolated profiles.",
   "main": "app/index.js",
+  "desktopName": "tuxchat.desktop",
   "homepage": "https://github.com/histerick/tuxchat",
   "author": {
     "name": "TuxChat contributors",
@@ -26,6 +27,7 @@
   "build": {
     "appId": "app.tuxchat.desktop",
     "productName": "TuxChat",
+    "executableName": "tuxchat",
     "directories": {
       "output": "dist"
     },
@@ -33,7 +35,8 @@
     "linux": {
       "target": ["AppImage", "deb"],
       "category": "Network",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "syncDesktopName": true
     }
   }
 }
