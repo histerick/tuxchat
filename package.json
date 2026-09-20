@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "description": "Unofficial WhatsApp Web desktop client for Linux (Electron), with full call/screen-share support and multiple isolated profiles.",
   "main": "app/index.js",
-  "author": "TuxChat contributors",
+  "homepage": "https://github.com/histerick/tuxchat",
+  "author": {
+    "name": "TuxChat contributors",
+    "email": "dev@ericksalamanca.com"
+  },
   "license": "MIT",
   "private": true,
   "scripts": {
