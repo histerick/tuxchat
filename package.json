@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Unofficial WhatsApp Web desktop client for Linux (Electron), with full call/screen-share support and multiple isolated profiles.",
   "main": "app/index.js",
+  "author": "whatsapp-linux-app contributors",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -17,5 +18,18 @@
     "electron-builder": "^26.15.3",
     "eslint": "^9.38.0",
     "prettier": "^3.6.2"
+  },
+  "build": {
+    "appId": "app.whatsapplinux.desktop",
+    "productName": "WhatsApp",
+    "directories": {
+      "output": "dist"
+    },
+    "files": ["app/**/*", "package.json"],
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Network",
+      "icon": "build/icon.png"
+    }
   }
 }
