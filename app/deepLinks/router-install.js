@@ -22,7 +22,11 @@ const { t } = require('../i18n');
 const ROUTER_DESKTOP_ID = 'tuxchat_router';
 
 function routerExecLine() {
-  const parts = [process.execPath];
+  // Same reasoning as buildLauncherScript() in sessions/index.js: under an
+  // AppImage, process.execPath is that run's temporary mount path, not
+  // something a persisted .desktop Exec= line can rely on days later.
+  // process.env.APPIMAGE is the stable path to the .AppImage file itself.
+  const parts = [process.env.APPIMAGE || process.execPath];
   // Dev mode needs the app dir as an explicit argument, same reasoning as
   // buildLauncherScript() in sessions/index.js. A packaged build's own
   // executable already knows its app.

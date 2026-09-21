@@ -161,7 +161,15 @@ function deleteSession(desktopId) {
 }
 
 function buildLauncherScript({ profileName, userDataDir, desktopId }) {
-  const parts = [shQuote(process.execPath)];
+  // Not process.execPath alone: under an AppImage, that's the binary
+  // inside that run's temporary mount — a fresh, different path every
+  // single launch. A launcher written with that path works once and then
+  // points at nothing. process.env.APPIMAGE is the AppImage runtime's own
+  // pointer to the stable .AppImage file the user actually downloaded;
+  // re-running *that* re-mounts fresh each time, which is exactly what a
+  // persisted launcher script needs. Unset (.deb, dev mode): execPath
+  // already is the stable path, same as before.
+  const parts = [shQuote(process.env.APPIMAGE || process.execPath)];
   // Dev mode (unpackaged): the Electron binary needs the app dir as its
   // first argument, same as the hand-written launchers. A packaged build's
   // executable already knows its own app, so this is skipped there.

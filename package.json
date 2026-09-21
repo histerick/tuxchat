@@ -1,6 +1,6 @@
 {
   "name": "tuxchat",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Unofficial WhatsApp Web desktop client for Linux (Electron), with full call/screen-share support, multiple isolated profiles, and whatsapp:// deep-link support.",
   "main": "app/index.js",
   "desktopName": "tuxchat.desktop",
