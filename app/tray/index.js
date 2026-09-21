@@ -2,6 +2,7 @@
 
 const { Tray, Menu, app, nativeImage } = require('electron');
 const fs = require('node:fs');
+const { t } = require('../i18n');
 
 function buildTrayMenu(mainWindow, appName) {
   return Menu.buildFromTemplate([
@@ -10,7 +11,7 @@ function buildTrayMenu(mainWindow, appName) {
     { label: appName, enabled: false },
     { type: 'separator' },
     {
-      label: 'Mostrar',
+      label: t('tray.show'),
       click: () => {
         mainWindow.show();
         mainWindow.focus();
@@ -18,7 +19,7 @@ function buildTrayMenu(mainWindow, appName) {
     },
     { type: 'separator' },
     {
-      label: 'Salir',
+      label: t('menu.quit'),
       click: () => {
         app.isQuitting = true;
         app.quit();

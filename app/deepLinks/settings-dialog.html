@@ -19,17 +19,22 @@
         margin: 0 0 8px;
       }
       p {
-        font-size: 16px;
+        font-size: 14px;
         line-height: 1.5;
         color: #d1d7db;
         margin: 0 0 14px;
+      }
+      #current {
+        font-size: 13px;
+        color: #8696a0;
+        margin: 0 0 12px;
       }
       #list {
         display: flex;
         flex-direction: column;
         gap: 6px;
         margin-bottom: 12px;
-        max-height: 180px;
+        max-height: 160px;
         overflow-y: auto;
       }
       .session-row {
@@ -40,15 +45,12 @@
         border-radius: 6px;
         padding: 8px 10px;
         font-size: 16px;
+        cursor: pointer;
       }
-      .session-row input[type='checkbox'] {
+      .session-row input[type='radio'] {
         width: 16px;
         height: 16px;
         accent-color: #00a884;
-      }
-      #empty {
-        font-size: 16px;
-        color: #8696a0;
       }
       .actions {
         display: flex;
@@ -56,7 +58,7 @@
         gap: 8px;
         margin-top: 8px;
       }
-      button.action {
+      button {
         background: #202c33;
         border: none;
         border-radius: 6px;
@@ -65,33 +67,27 @@
         font-size: 16px;
         cursor: pointer;
       }
-      button#do-delete {
-        background: #f15c6d;
+      button#save {
+        background: #00a884;
         color: #111b21;
       }
       button:disabled {
         opacity: 0.5;
         cursor: default;
       }
-      #error {
-        color: #f15c6d;
-        font-size: 16px;
-        margin-top: 8px;
-      }
     </style>
   </head>
   <body>
     <h1 id="heading"></h1>
     <p id="description"></p>
+    <p id="current"></p>
     <div id="list"></div>
-    <p id="empty" hidden></p>
-    <p id="error" hidden></p>
     <div class="actions">
-      <button class="action" id="select-mode"></button>
-      <button class="action" id="cancel-select" hidden></button>
-      <button class="action" id="do-delete" hidden disabled></button>
+      <button id="forget"></button>
+      <button id="save" disabled></button>
+      <button id="close"></button>
     </div>
     <script src="../i18n/renderer-strings.js"></script>
-    <script src="delete-dialog.js"></script>
+    <script src="settings-dialog.js"></script>
   </body>
 </html>

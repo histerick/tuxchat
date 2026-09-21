@@ -16,19 +16,13 @@
       h1 {
         font-size: 18px;
         font-weight: normal;
-        margin: 0 0 8px;
-      }
-      p {
-        font-size: 16px;
-        line-height: 1.5;
-        color: #d1d7db;
-        margin: 0 0 14px;
+        margin: 0 0 12px;
       }
       #list {
         display: flex;
         flex-direction: column;
         gap: 6px;
-        margin-bottom: 12px;
+        margin-bottom: 14px;
         max-height: 180px;
         overflow-y: auto;
       }
@@ -40,58 +34,56 @@
         border-radius: 6px;
         padding: 8px 10px;
         font-size: 16px;
+        cursor: pointer;
       }
-      .session-row input[type='checkbox'] {
+      .session-row input[type='radio'] {
         width: 16px;
         height: 16px;
         accent-color: #00a884;
       }
-      #empty {
-        font-size: 16px;
-        color: #8696a0;
+      .remember-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: #d1d7db;
+        margin-bottom: 16px;
+      }
+      .remember-row input[type='checkbox'] {
+        width: 16px;
+        height: 16px;
+        accent-color: #00a884;
       }
       .actions {
         display: flex;
         justify-content: flex-end;
-        gap: 8px;
-        margin-top: 8px;
       }
-      button.action {
-        background: #202c33;
+      button {
+        background: #00a884;
+        color: #111b21;
         border: none;
         border-radius: 6px;
-        color: inherit;
         padding: 8px 14px;
         font-size: 16px;
         cursor: pointer;
-      }
-      button#do-delete {
-        background: #f15c6d;
-        color: #111b21;
       }
       button:disabled {
         opacity: 0.5;
         cursor: default;
       }
-      #error {
-        color: #f15c6d;
-        font-size: 16px;
-        margin-top: 8px;
-      }
     </style>
   </head>
   <body>
     <h1 id="heading"></h1>
-    <p id="description"></p>
     <div id="list"></div>
-    <p id="empty" hidden></p>
-    <p id="error" hidden></p>
+    <label class="remember-row">
+      <input id="remember" type="checkbox" />
+      <span id="remember-label"></span>
+    </label>
     <div class="actions">
-      <button class="action" id="select-mode"></button>
-      <button class="action" id="cancel-select" hidden></button>
-      <button class="action" id="do-delete" hidden disabled></button>
+      <button id="open" disabled></button>
     </div>
     <script src="../i18n/renderer-strings.js"></script>
-    <script src="delete-dialog.js"></script>
+    <script src="picker.js"></script>
   </body>
 </html>

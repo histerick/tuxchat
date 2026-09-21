@@ -2,14 +2,16 @@
 
 const { Menu, app } = require('electron');
 const { openAddSessionDialog, openDeleteSessionDialog, openRenameSessionDialog, canRenameSelf } = require('../sessions');
+const { openSettingsDialog } = require('../deepLinks');
+const { t } = require('../i18n');
 
 function buildMenu() {
   const template = [
     {
-      label: 'Archivo',
+      label: t('menu.file'),
       submenu: [
         {
-          label: 'Salir',
+          label: t('menu.quit'),
           accelerator: 'CmdOrCtrl+Q',
           click: () => {
             app.isQuitting = true;
@@ -19,25 +21,30 @@ function buildMenu() {
       ],
     },
     {
-      label: 'Sesiones',
+      label: t('menu.sessions'),
       submenu: [
         {
-          label: 'Añadir sesión...',
+          label: t('menu.addSession'),
           click: () => openAddSessionDialog(),
         },
         {
-          label: 'Renombrar sesión...',
+          label: t('menu.renameSession'),
           enabled: canRenameSelf(),
           click: () => openRenameSessionDialog(),
         },
         {
-          label: 'Eliminar sesión...',
+          label: t('menu.deleteSession'),
           click: () => openDeleteSessionDialog(),
+        },
+        { type: 'separator' },
+        {
+          label: t('menu.whatsappLinks'),
+          click: () => openSettingsDialog(),
         },
       ],
     },
     {
-      label: 'Ver',
+      label: t('menu.view'),
       submenu: [
         { role: 'reload' },
         { role: 'toggleDevTools' },

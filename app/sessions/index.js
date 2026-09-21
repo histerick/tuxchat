@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFile } = require('node:child_process');
 const { updateTrayName } = require('../tray');
+const { t, currentLocale } = require('../i18n');
 
 // Each extra session is a full, separate Electron process (~150-300MB RAM
 // each), so this cap is resource protection, not anti-spam. One constant,
@@ -45,13 +46,13 @@ function shQuote(value) {
 // get written verbatim into a `.desktop` file's Name= line.
 function validateProfileName(profileName) {
   if (!profileName) {
-    return 'Escribí un nombre para la sesión.';
+    return t('sessions.errors.emptyName');
   }
   if (/[\r\n]/.test(profileName)) {
-    return 'El nombre no puede tener saltos de línea.';
+    return t('sessions.errors.newlineName');
   }
   if (profileName.length > MAX_NAME_LENGTH) {
-    return `Máximo ${MAX_NAME_LENGTH} caracteres.`;
+    return t('sessions.errors.tooLong', MAX_NAME_LENGTH);
   }
   return null;
 }
@@ -130,7 +131,7 @@ function wipeUserDataDir(userDataDir) {
 function deleteSession(desktopId) {
   const match = /^tuxchat-(.+)$/.exec(desktopId || '');
   if (!match) {
-    return { ok: false, error: 'Sesión inválida.' };
+    return { ok: false, error: t('sessions.errors.invalidSession') };
   }
 
   const launcherPath = path.join(LAUNCHERS_DIR, `${desktopId}-launcher.sh`);
@@ -139,7 +140,7 @@ function deleteSession(desktopId) {
   const userDataDir = path.join(HOME, '.config', desktopId);
 
   if (!fs.existsSync(desktopPath)) {
-    return { ok: false, error: 'Esa sesión ya no existe.' };
+    return { ok: false, error: t('sessions.errors.notFound') };
   }
 
   try {
@@ -150,7 +151,7 @@ function deleteSession(desktopId) {
     fs.rmSync(desktopPath, { force: true });
     fs.rmSync(iconPath, { force: true });
   } catch (err) {
-    return { ok: false, error: `No se pudo eliminar la sesión: ${err.message}` };
+    return { ok: false, error: t('sessions.errors.deleteFailed', err.message) };
   }
 
   refreshDesktopCaches();
@@ -188,7 +189,7 @@ function buildDesktopEntry({ profileName, launcherPath, desktopId, hasIcon }) {
     'Terminal=false',
     'Type=Application',
     `Name=TuxChat - ${profileName}`,
-    `Comment=WhatsApp Web (sesión "${profileName}", proyecto TuxChat)`,
+    `Comment=${t('sessions.desktopComment', profileName)}`,
     `Exec=${launcherPath}`,
   ];
   if (hasIcon) lines.push(`Icon=${desktopId}`);
@@ -217,15 +218,15 @@ function createSession(rawName) {
 
   const slug = slugify(profileName);
   if (!slug) {
-    return { ok: false, error: 'Ese nombre no genera un identificador válido, probá con otro.' };
+    return { ok: false, error: t('sessions.errors.invalidSlug') };
   }
 
   const existing = listSessionSlugs();
   if (existing.includes(slug)) {
-    return { ok: false, error: `Ya existe una sesión "${profileName}".` };
+    return { ok: false, error: t('sessions.errors.duplicate', profileName) };
   }
   if (existing.length >= MAX_SESSIONS) {
-    return { ok: false, error: `Límite de ${MAX_SESSIONS} sesiones alcanzado.` };
+    return { ok: false, error: t('sessions.errors.limitReached', MAX_SESSIONS) };
   }
 
   const desktopId = `tuxchat-${slug}`;
@@ -249,7 +250,7 @@ function createSession(rawName) {
 
     fs.writeFileSync(desktopPath, buildDesktopEntry({ profileName, launcherPath, desktopId, hasIcon }));
   } catch (err) {
-    return { ok: false, error: `No se pudo crear la sesión: ${err.message}` };
+    return { ok: false, error: t('sessions.errors.createFailed', err.message) };
   }
 
   refreshDesktopCaches();
@@ -267,7 +268,7 @@ function createSession(rawName) {
 function renameSession(desktopId, rawNewName) {
   const match = /^tuxchat-(.+)$/.exec(desktopId || '');
   if (!match) {
-    return { ok: false, error: 'Sesión inválida.' };
+    return { ok: false, error: t('sessions.errors.invalidSession') };
   }
 
   const profileName = (rawNewName || '').trim();
@@ -280,7 +281,7 @@ function renameSession(desktopId, rawNewName) {
     (session) => session.desktopId !== desktopId && session.profileName === profileName
   );
   if (inUse) {
-    return { ok: false, error: `Ya hay otra sesión llamada "${profileName}".` };
+    return { ok: false, error: t('sessions.errors.inUse', profileName) };
   }
 
   const launcherPath = path.join(LAUNCHERS_DIR, `${desktopId}-launcher.sh`);
@@ -289,7 +290,7 @@ function renameSession(desktopId, rawNewName) {
   const userDataDir = path.join(HOME, '.config', desktopId);
 
   if (!fs.existsSync(desktopPath)) {
-    return { ok: false, error: 'Esa sesión ya no existe.' };
+    return { ok: false, error: t('sessions.errors.notFound') };
   }
 
   try {
@@ -300,7 +301,7 @@ function renameSession(desktopId, rawNewName) {
       buildDesktopEntry({ profileName, launcherPath, desktopId, hasIcon: fs.existsSync(iconPath) })
     );
   } catch (err) {
-    return { ok: false, error: `No se pudo renombrar la sesión: ${err.message}` };
+    return { ok: false, error: t('sessions.errors.renameFailed', err.message) };
   }
 
   refreshDesktopCaches();
@@ -333,7 +334,7 @@ ipcMain.handle('sessions:current', () => ({
 }));
 ipcMain.handle('sessions:rename', (_event, newName) => {
   if (!canRenameSelf()) {
-    return { ok: false, error: 'La sesión principal no se puede renombrar desde acá.' };
+    return { ok: false, error: t('sessions.errors.mainCantRename') };
   }
 
   const desktopId = `tuxchat-${slugify(selfContext.profileName)}`;
@@ -354,7 +355,6 @@ function openAddSessionDialog() {
     resizable: false,
     minimizable: false,
     maximizable: false,
-    title: 'Añadir sesión',
     webPreferences: {
       preload: path.join(__dirname, 'dialog-preload.js'),
       contextIsolation: true,
@@ -362,7 +362,7 @@ function openAddSessionDialog() {
     },
   });
   win.setMenuBarVisibility(false);
-  win.loadFile(path.join(__dirname, 'dialog.html'));
+  win.loadFile(path.join(__dirname, 'dialog.html'), { query: { locale: currentLocale() } });
   return win;
 }
 
@@ -373,7 +373,6 @@ function openDeleteSessionDialog() {
     resizable: false,
     minimizable: false,
     maximizable: false,
-    title: 'Eliminar sesión',
     webPreferences: {
       preload: path.join(__dirname, 'delete-dialog-preload.js'),
       contextIsolation: true,
@@ -381,7 +380,7 @@ function openDeleteSessionDialog() {
     },
   });
   win.setMenuBarVisibility(false);
-  win.loadFile(path.join(__dirname, 'delete-dialog.html'));
+  win.loadFile(path.join(__dirname, 'delete-dialog.html'), { query: { locale: currentLocale() } });
   return win;
 }
 
@@ -392,7 +391,6 @@ function openRenameSessionDialog() {
     resizable: false,
     minimizable: false,
     maximizable: false,
-    title: 'Renombrar sesión',
     webPreferences: {
       preload: path.join(__dirname, 'rename-dialog-preload.js'),
       contextIsolation: true,
@@ -400,8 +398,16 @@ function openRenameSessionDialog() {
     },
   });
   win.setMenuBarVisibility(false);
-  win.loadFile(path.join(__dirname, 'rename-dialog.html'));
+  win.loadFile(path.join(__dirname, 'rename-dialog.html'), { query: { locale: currentLocale() } });
   return win;
+}
+
+// The main profile (desktopId 'tuxchat', slug '') isn't listed by
+// listDeletableSessions() on purpose (see its own comment above) but deep
+// links still need to offer it as a target — it's a real, always-present
+// session, just not one manageable from the delete dialog.
+function listAllSessions() {
+  return [{ desktopId: 'tuxchat', profileName: t('sessions.mainLabel') }, ...listDeletableSessions()];
 }
 
 module.exports = {
@@ -411,10 +417,12 @@ module.exports = {
   sessionStatus,
   createSession,
   listDeletableSessions,
+  listAllSessions,
   deleteSession,
   renameSession,
   registerSelfContext,
   canRenameSelf,
+  refreshDesktopCaches,
   MAX_SESSIONS,
   MAX_NAME_LENGTH,
 };

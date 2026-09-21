@@ -1,4 +1,14 @@
-'use strict';
+const LOCALE = new URLSearchParams(location.search).get('locale') === 'es' ? 'es' : 'en';
+const L = window.TUXCHAT_STRINGS[LOCALE].deleteDialog;
+
+document.documentElement.lang = LOCALE;
+document.title = L.windowTitle;
+document.getElementById('heading').textContent = L.heading;
+document.getElementById('description').textContent = L.description;
+document.getElementById('empty').textContent = L.empty;
+document.getElementById('select-mode').textContent = L.select;
+document.getElementById('cancel-select').textContent = L.cancel;
+document.getElementById('do-delete').textContent = L.delete;
 
 const listEl = document.getElementById('list');
 const emptyEl = document.getElementById('empty');

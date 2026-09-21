@@ -1,4 +1,13 @@
-'use strict';
+const LOCALE = new URLSearchParams(location.search).get('locale') === 'es' ? 'es' : 'en';
+const L = window.TUXCHAT_STRINGS[LOCALE].addDialog;
+
+document.documentElement.lang = LOCALE;
+document.title = L.windowTitle;
+document.getElementById('heading').textContent = L.heading;
+document.getElementById('name').placeholder = L.namePlaceholder;
+document.getElementById('success').textContent = L.success;
+document.getElementById('cancel').textContent = L.cancel;
+document.getElementById('create').textContent = L.create;
 
 const nameInput = document.getElementById('name');
 const errorEl = document.getElementById('error');
@@ -13,20 +22,15 @@ function showError(message) {
 }
 
 window.sessionDialog.getStatus().then(({ count, max }) => {
-  countEl.textContent = `Sesiones configuradas: ${count}/${max}`;
+  countEl.textContent = L.count(count, max);
   if (count >= max) {
     nameInput.disabled = true;
     createBtn.disabled = true;
-    showError(`Límite de ${max} sesiones alcanzado.`);
   }
 });
 
 async function submit() {
   const name = nameInput.value.trim();
-  if (!name) {
-    showError('Escribí un nombre para la sesión.');
-    return;
-  }
   errorEl.hidden = true;
   createBtn.disabled = true;
   nameInput.disabled = true;

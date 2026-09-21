@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Añadir sesión</title>
+    <title></title>
     <style>
       body {
         margin: 0;
@@ -73,15 +73,16 @@
     </style>
   </head>
   <body>
-    <h1>Nueva sesión aislada de TuxChat</h1>
+    <h1 id="heading"></h1>
     <p id="count"></p>
-    <input id="name" type="text" placeholder="Ej: Personal, Trabajo, Familia" maxlength="25" autofocus />
+    <input id="name" type="text" maxlength="25" autofocus />
     <p id="error" hidden></p>
-    <p id="success" hidden>¡Listo! Abriendo la sesión...</p>
+    <p id="success" hidden></p>
     <div class="actions">
-      <button id="cancel">Cancelar</button>
-      <button id="create">Crear</button>
+      <button id="cancel"></button>
+      <button id="create"></button>
     </div>
+    <script src="../i18n/renderer-strings.js"></script>
     <script src="dialog.js"></script>
   </body>
 </html>

@@ -1,4 +1,12 @@
-'use strict';
+const LOCALE = new URLSearchParams(location.search).get('locale') === 'es' ? 'es' : 'en';
+const L = window.TUXCHAT_STRINGS[LOCALE].renameDialog;
+
+document.documentElement.lang = LOCALE;
+document.title = L.windowTitle;
+document.getElementById('heading').textContent = L.heading;
+document.getElementById('hint').textContent = L.hint;
+document.getElementById('cancel').textContent = L.cancel;
+document.getElementById('confirm').textContent = L.confirm;
 
 const nameInput = document.getElementById('name');
 const errorEl = document.getElementById('error');
@@ -14,7 +22,7 @@ window.renameSessionDialog.getCurrent().then(({ profileName, canRename }) => {
   if (!canRename) {
     nameInput.disabled = true;
     confirmBtn.disabled = true;
-    showError('La sesión principal no se puede renombrar desde acá.');
+    showError(L.mainCantRename);
     return;
   }
   nameInput.value = profileName;
@@ -25,11 +33,6 @@ cancelBtn.addEventListener('click', () => window.close());
 
 async function submit() {
   const name = nameInput.value.trim();
-  if (!name) {
-    showError('Escribí un nombre para la sesión.');
-    return;
-  }
-
   errorEl.hidden = true;
   confirmBtn.disabled = true;
   nameInput.disabled = true;

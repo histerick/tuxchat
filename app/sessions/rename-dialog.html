@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Renombrar sesión</title>
+    <title></title>
     <style>
       body {
         margin: 0;
@@ -68,14 +68,15 @@
     </style>
   </head>
   <body>
-    <h1>Renombrar sesión</h1>
-    <p id="hint">Máximo 25 caracteres.</p>
+    <h1 id="heading"></h1>
+    <p id="hint"></p>
     <input id="name" type="text" maxlength="25" autofocus />
     <p id="error" hidden></p>
     <div class="actions">
-      <button id="cancel">Cancelar</button>
-      <button id="confirm">Renombrar</button>
+      <button id="cancel"></button>
+      <button id="confirm"></button>
     </div>
+    <script src="../i18n/renderer-strings.js"></script>
     <script src="rename-dialog.js"></script>
   </body>
 </html>

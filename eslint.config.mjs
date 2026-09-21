@@ -7,12 +7,15 @@ const nodeGlobals = {
   __dirname: 'readonly',
   console: 'readonly',
   URL: 'readonly',
+  URLSearchParams: 'readonly',
   setTimeout: 'readonly',
 };
 
 const browserGlobals = {
   window: 'readonly',
   document: 'readonly',
+  location: 'readonly',
+  URLSearchParams: 'readonly',
   setTimeout: 'readonly',
 };
 
@@ -25,6 +28,9 @@ export default [
       'app/sessions/dialog.js',
       'app/sessions/delete-dialog.js',
       'app/sessions/rename-dialog.js',
+      'app/deepLinks/settings-dialog.js',
+      'app/router/picker.js',
+      'app/i18n/renderer-strings.js',
     ],
     languageOptions: {
       ecmaVersion: 2023,
@@ -41,6 +47,9 @@ export default [
       'app/sessions/dialog.js',
       'app/sessions/delete-dialog.js',
       'app/sessions/rename-dialog.js',
+      'app/deepLinks/settings-dialog.js',
+      'app/router/picker.js',
+      'app/i18n/renderer-strings.js',
     ],
     languageOptions: {
       ecmaVersion: 2023,
