@@ -47,14 +47,27 @@ if (needsX11Relaunch) {
   // Not app.relaunch(): tested and confirmed unreliable here — it never
   // actually re-executes (relaunch is apparently tied to the normal quit
   // lifecycle, which app.exit() explicitly skips, and app.quit() didn't
-  // fare any better either). A plain detached child process does exactly
-  // what's needed and is easy to reason about.
+  // fare any better either). A plain child process does exactly what's
+  // needed and is easy to reason about.
+  //
+  // Not detached-and-exit-immediately either: confirmed live on an
+  // AppImage build on this exact NVIDIA+Wayland combo — the AppImage
+  // runtime tears down its extracted/mounted copy of the app the moment
+  // *this* process (its own immediate child) exits, which used to race
+  // the detached child below trying to load its binary from that same,
+  // by-then-gone, path — it would silently never map a window, no error
+  // anywhere. Staying alive here until the real relaunch is actually done
+  // keeps that extraction alive for as long as it's needed, and costs
+  // nothing on non-AppImage builds (.deb, dev mode): this process doesn't
+  // own a window yet at this point, so lingering a bit longer is free.
   const child = spawn(process.execPath, process.argv.slice(1).concat('--ozone-platform=x11'), {
-    detached: true,
-    stdio: 'ignore',
+    stdio: 'inherit',
   });
-  child.unref();
-  app.exit(0);
+  const forwardToChild = (signal) => process.once(signal, () => child.kill(signal));
+  forwardToChild('SIGTERM');
+  forwardToChild('SIGINT');
+  child.on('error', () => app.exit(1));
+  child.on('exit', (code, signal) => app.exit(signal ? 1 : (code ?? 0)));
 } else if (process.argv.includes('--tuxchat-deep-link-router')) {
   // A whatsapp:// link was handed to the router .desktop entry, not to a
   // real WhatsApp session — see deepLinks/router-install.js. This process
