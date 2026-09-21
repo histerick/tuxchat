@@ -50,6 +50,13 @@ window.TUXCHAT_STRINGS = {
       remember: 'Recordar esta elección para los próximos enlaces',
       open: 'Abrir',
     },
+    changelogDialog: {
+      windowTitle: 'Novedades de TuxChat',
+      heading: (version) => `TuxChat se actualizó a ${version}`,
+      subheading: 'Esto es lo que cambió:',
+      noNotes: 'No hay notas de esta versión.',
+      close: 'Cerrar',
+    },
   },
   en: {
     addDialog: {
@@ -95,6 +102,13 @@ window.TUXCHAT_STRINGS = {
       heading: 'Which session should open this chat?',
       remember: 'Remember this choice for future links',
       open: 'Open',
+    },
+    changelogDialog: {
+      windowTitle: "What's new in TuxChat",
+      heading: (version) => `TuxChat updated to ${version}`,
+      subheading: "Here's what changed:",
+      noNotes: 'No release notes for this version.',
+      close: 'Close',
     },
   },
 };

@@ -12,6 +12,7 @@ const { createTray } = require('./tray');
 const { buildMenu } = require('./menus');
 const { registerSelfContext } = require('./sessions');
 const { ensureRouterRegistered, extractDeepLinkArg, translateToWebUrl } = require('./deepLinks');
+const { initUpdater } = require('./updater');
 
 function isWaylandSession() {
   return process.env.XDG_SESSION_TYPE === 'wayland' || Boolean(process.env.WAYLAND_DISPLAY);
@@ -130,6 +131,7 @@ if (needsX11Relaunch) {
       registerSelfContext(mainWindow, tray, config.profileName);
       buildMenu();
       ensureRouterRegistered();
+      initUpdater(config);
     }).catch((err) => {
       // Without this, a thrown error here becomes a silent unhandled
       // promise rejection — the window can still open (created earlier in

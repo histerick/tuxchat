@@ -9,6 +9,7 @@ const nodeGlobals = {
   URL: 'readonly',
   URLSearchParams: 'readonly',
   setTimeout: 'readonly',
+  setInterval: 'readonly',
 };
 
 const browserGlobals = {
@@ -31,6 +32,7 @@ export default [
       'app/deepLinks/settings-dialog.js',
       'app/router/picker.js',
       'app/i18n/renderer-strings.js',
+      'app/updater/changelog-dialog.js',
     ],
     languageOptions: {
       ecmaVersion: 2023,
@@ -50,6 +52,7 @@ export default [
       'app/deepLinks/settings-dialog.js',
       'app/router/picker.js',
       'app/i18n/renderer-strings.js',
+      'app/updater/changelog-dialog.js',
     ],
     languageOptions: {
       ecmaVersion: 2023,
