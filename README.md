@@ -21,7 +21,12 @@ Descargá el instalador desde
 [Releases](https://github.com/histerick/tuxchat/releases):
 
 - **Ubuntu/Debian:** `tuxchat_<version>_amd64.deb` — `sudo apt install ./tuxchat_<version>_amd64.deb`, o doble clic para abrirlo con el instalador de software.
-- **Cualquier otra distro:** `TuxChat-<version>.AppImage` — dale permiso de ejecución y corrélo directo, no requiere instalación.
+- **Cualquier otra distro:** `TuxChat-<version>.AppImage` — dale permiso de ejecución y corrélo directo, no requiere instalación ni `libfuse2` (distros recientes como Ubuntu 24.04+ ya no lo traen por defecto).
+
+### Actualizaciones
+
+- **AppImage:** se actualiza solo, en segundo plano — revisa si hay versión nueva al abrir y cada 4 horas mientras corre, la descarga sin interrumpir, y la instala la próxima vez que cerrás la app. Al abrir después de actualizar, muestra una ventana única con las novedades de esa versión.
+- **.deb:** no se autoactualiza (lo maneja `apt`) — bajá el paquete nuevo desde [Releases](https://github.com/histerick/tuxchat/releases) cuando salga uno.
 
 ## Múltiples sesiones
 
