@@ -63,9 +63,19 @@ if (needsX11Relaunch) {
   const child = spawn(process.execPath, process.argv.slice(1).concat('--ozone-platform=x11'), {
     stdio: 'inherit',
   });
-  const forwardToChild = (signal) => process.once(signal, () => child.kill(signal));
-  forwardToChild('SIGTERM');
-  forwardToChild('SIGINT');
+  // Not process.on('SIGTERM'): Electron installs its own SIGTERM/SIGINT/
+  // SIGHUP handlers that turn the signal straight into app.quit(), so a
+  // Node-level listener never runs — confirmed live, the parent exited and
+  // left the real app orphaned and still running. Hooking the quit itself
+  // catches every signal Electron handles: hold the quit, ask the child to
+  // close cleanly, and let its 'exit' below end this process. The timeout
+  // only covers a child that hangs on shutdown.
+  app.on('will-quit', (event) => {
+    if (child.exitCode !== null || child.signalCode !== null) return;
+    event.preventDefault();
+    child.kill('SIGTERM');
+    setTimeout(() => child.kill('SIGKILL'), 10_000).unref();
+  });
   child.on('error', () => app.exit(1));
   child.on('exit', (code, signal) => app.exit(signal ? 1 : (code ?? 0)));
 } else if (process.argv.includes('--tuxchat-deep-link-router')) {
