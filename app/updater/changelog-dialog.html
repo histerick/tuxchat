@@ -12,6 +12,9 @@
         padding: 16px;
         box-sizing: border-box;
         font-size: 16px;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
       }
       h1 {
         font-size: 18px;
@@ -24,15 +27,45 @@
         margin: 0 0 16px;
       }
       #notes {
-        white-space: pre-wrap;
         font-size: 14px;
         line-height: 1.5;
         background: #202c33;
         border: 1px solid #2a3942;
         border-radius: 6px;
         padding: 12px;
-        max-height: 340px;
+        flex: 0 1 auto;
+        min-height: 0;
         overflow-y: auto;
+      }
+      #notes.plain {
+        white-space: pre-wrap;
+      }
+      #notes > :first-child {
+        margin-top: 0;
+      }
+      #notes > :last-child {
+        margin-bottom: 0;
+      }
+      #notes p,
+      #notes ul,
+      #notes ol {
+        margin: 0 0 10px;
+      }
+      #notes ul,
+      #notes ol {
+        padding-left: 20px;
+      }
+      #notes code {
+        font-family: monospace;
+        font-size: 13px;
+        background: #111b21;
+        border-radius: 4px;
+        padding: 1px 4px;
+      }
+      #notes hr {
+        border: none;
+        border-top: 1px solid #2a3942;
+        margin: 14px 0;
       }
       .actions {
         display: flex;
@@ -53,7 +86,7 @@
   <body>
     <h1 id="heading"></h1>
     <p id="subheading"></p>
-    <pre id="notes"></pre>
+    <div id="notes"></div>
     <div class="actions">
       <button id="close"></button>
     </div>

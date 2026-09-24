@@ -18,6 +18,8 @@ const browserGlobals = {
   location: 'readonly',
   URLSearchParams: 'readonly',
   setTimeout: 'readonly',
+  Node: 'readonly',
+  DOMParser: 'readonly',
 };
 
 export default [
