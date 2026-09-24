@@ -43,6 +43,27 @@ const needsX11Relaunch =
   hasNvidiaGpu() &&
   !process.argv.includes('--ozone-platform=x11');
 
+// Set only on the child spawned by the relaunch below. Read once and
+// removed right away: this process itself launches other sessions (see
+// deepLinks/forward.js, sessions/), and they must not inherit it and
+// watch a parent that was never theirs.
+const relaunchParentPid = Number(process.env.TUXCHAT_RELAUNCH_PARENT) || 0;
+delete process.env.TUXCHAT_RELAUNCH_PARENT;
+
+// The parent forwards every quit it can see (will-quit, below), but
+// SIGKILL can't be seen — kill -9, the OOM killer, a "force quit" in a
+// task manager. The child would then keep running, orphaned, on an
+// AppImage mount that's already gone. Linux reparents an orphan, so a
+// changed ppid means the parent is gone: quit cleanly then. Polled rather
+// than prctl(PR_SET_PDEATHSIG), which Node doesn't expose, and rather
+// than wrapping the spawn in `setpriv --pdeathsig`, which not every
+// distro ships.
+if (relaunchParentPid) {
+  setInterval(() => {
+    if (process.ppid !== relaunchParentPid) app.quit();
+  }, 2000);
+}
+
 if (needsX11Relaunch) {
   // Not app.relaunch(): tested and confirmed unreliable here — it never
   // actually re-executes (relaunch is apparently tied to the normal quit
@@ -62,6 +83,7 @@ if (needsX11Relaunch) {
   // own a window yet at this point, so lingering a bit longer is free.
   const child = spawn(process.execPath, process.argv.slice(1).concat('--ozone-platform=x11'), {
     stdio: 'inherit',
+    env: { ...process.env, TUXCHAT_RELAUNCH_PARENT: String(process.pid) },
   });
   // Not process.on('SIGTERM'): Electron installs its own SIGTERM/SIGINT/
   // SIGHUP handlers that turn the signal straight into app.quit(), so a
