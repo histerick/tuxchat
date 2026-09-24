@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, session } = require('electron');
+const { app, BrowserWindow, session, shell } = require('electron');
 const path = require('node:path');
 
 // WhatsApp Web rejects Electron's default UA ("... Electron/44.4.3 ...")
@@ -8,6 +8,51 @@ const path = require('node:path');
 // Electron token and reports the real Chromium version underneath instead
 // of a fake one, which is enough to pass the check.
 const DESKTOP_CHROME_UA = `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
+
+// Schemes safe to hand to the desktop (xdg-open). Anything else — file:,
+// javascript:, blob:, custom app schemes — is dropped, since a chat
+// message is untrusted input.
+const EXTERNAL_SCHEMES = new Set(['http:', 'https:', 'mailto:', 'tel:']);
+
+function openExternally(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return;
+  }
+  if (!EXTERNAL_SCHEMES.has(parsed.protocol)) return;
+  shell.openExternal(parsed.href).catch((err) => {
+    console.error('No se pudo abrir el enlace en el navegador:', err);
+  });
+}
+
+// Links in chats (Zoom, Meet, anything with target="_blank") would
+// otherwise open as a bare Electron popup sharing this session. Send them
+// to the user's default browser instead — which, if it's already running,
+// just gets a new tab in its existing window.
+function routeExternalLinks(win, appUrl) {
+  const appOrigin = new URL(appUrl).origin;
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    openExternally(url);
+    return { action: 'deny' };
+  });
+
+  // Plain same-window navigations away from WhatsApp Web (a link without
+  // target="_blank") would replace the whole app with the external page.
+  win.webContents.on('will-navigate', (event, url) => {
+    let origin;
+    try {
+      origin = new URL(url).origin;
+    } catch {
+      return;
+    }
+    if (origin === appOrigin) return;
+    event.preventDefault();
+    openExternally(url);
+  });
+}
 
 function createMainWindow(config) {
   session.defaultSession.setUserAgent(DESKTOP_CHROME_UA);
@@ -26,6 +71,7 @@ function createMainWindow(config) {
   });
 
   win.webContents.setUserAgent(DESKTOP_CHROME_UA);
+  routeExternalLinks(win, config.url);
   win.loadURL(config.url);
 
   // Electron syncs the window title to the loaded page's document.title by
