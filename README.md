@@ -22,7 +22,7 @@ but that hasn't been verified yet — reports from other setups are welcome.
 
 | | |
 |---|---|
-| ![Sessions → Add session…](docs/screenshots/screen-01-add-session.jpg) | ![Naming the new session](docs/screenshots/screen-02-name-session.jpg) |
+| ![Sessions → Add session…](docs/screenshots/screen-01-add-session.jpg) | ![Naming the new session](docs/screenshots/screen-02-name-new-session.jpg) |
 | **1.** Sessions → Add session… | **2.** Name the new isolated session |
 | ![Sessions → WhatsApp links…](docs/screenshots/screen-03-setting-whatsapp-links.jpg) | ![Choosing which session opens whatsapp:// links](docs/screenshots/screen-04-select-account-open-link.jpg) |
 | **3.** Sessions → WhatsApp links… | **4.** Choose which session opens `whatsapp://` links |
