@@ -16,6 +16,17 @@ distros/GPUs (the `.deb` only depends on standard GTK/Debian libraries, and
 `--ozone-platform=x11` is only forced when NVIDIA on Wayland is detected),
 but that hasn't been verified yet — reports from other setups are welcome.
 
+## Screenshots
+
+![Two isolated sessions running side by side](docs/screenshots/screen-05-two-sessions-open.jpg)
+
+| | |
+|---|---|
+| ![Sessions → Add session…](docs/screenshots/screen-01-add-session.jpg) | ![Naming the new session](docs/screenshots/screen-02-name-session.jpg) |
+| **1.** Sessions → Add session… | **2.** Name the new isolated session |
+| ![Sessions → WhatsApp links…](docs/screenshots/screen-03-setting-whatsapp-links.jpg) | ![Choosing which session opens whatsapp:// links](docs/screenshots/screen-04-select-account-open-link.jpg) |
+| **3.** Sessions → WhatsApp links… | **4.** Choose which session opens `whatsapp://` links |
+
 ## Installation
 
 Download the installer from
