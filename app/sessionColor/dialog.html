@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title></title>
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+        background: #111b21;
+        color: #e9edef;
+        padding: 16px;
+        box-sizing: border-box;
+        font-size: 16px;
+      }
+      h1 {
+        font-size: 18px;
+        font-weight: normal;
+        margin: 0 0 4px;
+      }
+      #hint {
+        font-size: 13px;
+        color: #8696a0;
+        margin: 0 0 16px;
+      }
+      #swatches {
+        display: grid;
+        grid-template-columns: repeat(9, 1fr);
+        gap: 8px;
+      }
+      .swatch {
+        aspect-ratio: 1;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        padding: 0;
+        cursor: pointer;
+        outline: none;
+      }
+      .swatch:focus-visible {
+        box-shadow: 0 0 0 2px #8696a0;
+      }
+      .swatch[aria-checked='true'] {
+        border-color: #e9edef;
+      }
+      .swatch.none {
+        background: #202c33;
+        background-image: linear-gradient(135deg, transparent 45%, #8696a0 45%, #8696a0 55%, transparent 55%);
+      }
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 20px;
+      }
+      button#close {
+        background: #00a884;
+        color: #111b21;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 14px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 id="heading"></h1>
+    <p id="hint"></p>
+    <div id="swatches" role="radiogroup"></div>
+    <div class="actions">
+      <button id="close"></button>
+    </div>
+    <script src="../i18n/renderer-strings.js"></script>
+    <script src="dialog.js"></script>
+  </body>
+</html>

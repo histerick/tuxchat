@@ -16,11 +16,16 @@ const es = {
     addSession: 'Añadir sesión...',
     renameSession: 'Renombrar sesión...',
     deleteSession: 'Eliminar sesión...',
+    sessionColor: 'Color de la sesión...',
     whatsappLinks: 'Enlaces de WhatsApp...',
     view: 'Ver',
   },
   tray: {
     show: 'Mostrar',
+  },
+  contextMenu: {
+    copyLink: 'Copiar enlace',
+    openLink: 'Abrir en el navegador',
   },
   sessions: {
     mainLabel: 'TuxChat (principal)',
@@ -58,11 +63,16 @@ const en = {
     addSession: 'Add session...',
     renameSession: 'Rename session...',
     deleteSession: 'Delete session...',
+    sessionColor: 'Session color...',
     whatsappLinks: 'WhatsApp links...',
     view: 'View',
   },
   tray: {
     show: 'Show',
+  },
+  contextMenu: {
+    copyLink: 'Copy link',
+    openLink: 'Open in browser',
   },
   sessions: {
     mainLabel: 'TuxChat (main)',

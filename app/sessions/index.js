@@ -22,6 +22,11 @@ const APPLICATIONS_DIR = path.join(HOME, '.local', 'share', 'applications');
 const LAUNCHERS_DIR = path.join(HOME, '.local', 'bin');
 const ICONS_DIR = path.join(HOME, '.local', 'share', 'icons', 'hicolor', '512x512', 'apps');
 const MAIN_ICON = path.join(__dirname, '..', '..', 'build', 'icon.png');
+// Session-colored copies of the icon (see sessionColor/). Referenced from
+// the .desktop by absolute path with the color in the file name, so a
+// color change is a new path: GNOME's dock caches icons by name and
+// wouldn't otherwise notice the same file being overwritten.
+const TINTED_ICONS_DIR = path.join(HOME, '.local', 'share', 'tuxchat', 'icons');
 
 // Matches both the main profile's `tuxchat.desktop` (no suffix) and extra
 // sessions' `tuxchat-<slug>.desktop`, same naming already used by hand for
@@ -150,6 +155,7 @@ function deleteSession(desktopId) {
     fs.rmSync(launcherPath, { force: true });
     fs.rmSync(desktopPath, { force: true });
     fs.rmSync(iconPath, { force: true });
+    removeTintedIcons(desktopId);
   } catch (err) {
     return { ok: false, error: t('sessions.errors.deleteFailed', err.message) };
   }
@@ -190,7 +196,7 @@ exec ${parts.join(' \\\n  ')}
 `;
 }
 
-function buildDesktopEntry({ profileName, launcherPath, desktopId, hasIcon }) {
+function buildDesktopEntry({ profileName, launcherPath, desktopId, icon }) {
   const lines = [
     '[Desktop Entry]',
     'Version=1.0',
@@ -200,9 +206,51 @@ function buildDesktopEntry({ profileName, launcherPath, desktopId, hasIcon }) {
     `Comment=${t('sessions.desktopComment', profileName)}`,
     `Exec=${launcherPath}`,
   ];
-  if (hasIcon) lines.push(`Icon=${desktopId}`);
+  if (icon) lines.push(`Icon=${icon}`);
   lines.push(`StartupWMClass=${desktopId}`, 'Categories=Network;InstantMessaging;');
   return lines.join('\n') + '\n';
+}
+
+function readDesktopIcon(desktopPath) {
+  try {
+    const match = /^Icon=(.+)$/m.exec(fs.readFileSync(desktopPath, 'utf8'));
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+function removeTintedIcons(desktopId) {
+  if (!fs.existsSync(TINTED_ICONS_DIR)) return;
+  for (const file of fs.readdirSync(TINTED_ICONS_DIR)) {
+    if (file.startsWith(`${desktopId}-`)) fs.rmSync(path.join(TINTED_ICONS_DIR, file), { force: true });
+  }
+}
+
+// Points an extra session's dock/launcher icon at a session-colored PNG,
+// or back at the default icon when pngBuffer is null. Only for sessions
+// this app created: the main profile's .desktop belongs to the AppImage
+// integration or the .deb, so it's never rewritten.
+function setSessionIcon(desktopId, colorKey, pngBuffer) {
+  if (!/^tuxchat-(.+)$/.test(desktopId || '')) return;
+  const desktopPath = path.join(APPLICATIONS_DIR, `${desktopId}.desktop`);
+  if (!fs.existsSync(desktopPath)) return;
+
+  removeTintedIcons(desktopId);
+  let icon = fs.existsSync(path.join(ICONS_DIR, `${desktopId}.png`)) ? desktopId : null;
+  if (pngBuffer) {
+    fs.mkdirSync(TINTED_ICONS_DIR, { recursive: true });
+    icon = path.join(TINTED_ICONS_DIR, `${desktopId}-${colorKey}.png`);
+    fs.writeFileSync(icon, pngBuffer);
+  }
+
+  const lines = fs
+    .readFileSync(desktopPath, 'utf8')
+    .split('\n')
+    .filter((line) => !line.startsWith('Icon='));
+  if (icon) lines.splice(lines.findIndex((line) => line.startsWith('Exec=')) + 1, 0, `Icon=${icon}`);
+  fs.writeFileSync(desktopPath, lines.join('\n'));
+  refreshDesktopCaches();
 }
 
 function refreshDesktopCaches() {
@@ -256,7 +304,10 @@ function createSession(rawName) {
     fs.writeFileSync(launcherPath, buildLauncherScript({ profileName, userDataDir, desktopId }));
     fs.chmodSync(launcherPath, 0o755);
 
-    fs.writeFileSync(desktopPath, buildDesktopEntry({ profileName, launcherPath, desktopId, hasIcon }));
+    fs.writeFileSync(
+      desktopPath,
+      buildDesktopEntry({ profileName, launcherPath, desktopId, icon: hasIcon ? desktopId : null })
+    );
   } catch (err) {
     return { ok: false, error: t('sessions.errors.createFailed', err.message) };
   }
@@ -304,10 +355,10 @@ function renameSession(desktopId, rawNewName) {
   try {
     fs.writeFileSync(launcherPath, buildLauncherScript({ profileName, userDataDir, desktopId }));
     fs.chmodSync(launcherPath, 0o755);
-    fs.writeFileSync(
-      desktopPath,
-      buildDesktopEntry({ profileName, launcherPath, desktopId, hasIcon: fs.existsSync(iconPath) })
-    );
+    // Keeps whatever Icon= is there now, so a rename doesn't drop a
+    // session-colored icon back to the default one.
+    const icon = readDesktopIcon(desktopPath) || (fs.existsSync(iconPath) ? desktopId : null);
+    fs.writeFileSync(desktopPath, buildDesktopEntry({ profileName, launcherPath, desktopId, icon }));
   } catch (err) {
     return { ok: false, error: t('sessions.errors.renameFailed', err.message) };
   }
@@ -324,8 +375,14 @@ function renameSession(desktopId, rawNewName) {
 // above only affects the *next* launch.
 let selfContext = null;
 
-function registerSelfContext(mainWindow, tray, profileName) {
-  selfContext = { mainWindow, tray, profileName };
+// desktopId comes from the session's own --class, fixed at creation: the
+// display name can change on every rename, so re-deriving it from
+// slugify(profileName) pointed at a .desktop that no longer matched
+// after the first rename ("that session doesn't exist anymore"). The
+// slugify fallback only covers hand-written launchers without --class.
+function registerSelfContext(mainWindow, tray, profileName, wmClass) {
+  const desktopId = wmClass || (profileName ? `tuxchat-${slugify(profileName)}` : null);
+  selfContext = { mainWindow, tray, profileName, desktopId };
 }
 
 function canRenameSelf() {
@@ -345,8 +402,7 @@ ipcMain.handle('sessions:rename', (_event, newName) => {
     return { ok: false, error: t('sessions.errors.mainCantRename') };
   }
 
-  const desktopId = `tuxchat-${slugify(selfContext.profileName)}`;
-  const result = renameSession(desktopId, newName);
+  const result = renameSession(selfContext.desktopId, newName);
   if (result.ok) {
     selfContext.profileName = result.profileName;
     const appName = `TuxChat - ${result.profileName}`;
@@ -431,6 +487,7 @@ module.exports = {
   registerSelfContext,
   canRenameSelf,
   refreshDesktopCaches,
+  setSessionIcon,
   MAX_SESSIONS,
   MAX_NAME_LENGTH,
 };

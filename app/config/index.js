@@ -2,9 +2,10 @@
 
 const path = require('node:path');
 
-// --user-data-dir and --class are native Chromium/X11 switches: Electron
-// honors them automatically before app is ready, so they don't need
-// custom parsing here. Only our own flags are parsed below.
+// --user-data-dir is a native Chromium switch: Electron honors it
+// automatically before app is ready. --class is parsed below too, since
+// Electron does *not* apply it to the window's WM_CLASS on its own (see
+// app/index.js).
 function parseArgs(argv) {
   const args = {};
   for (const arg of argv) {
@@ -22,6 +23,7 @@ function getConfig() {
 
   return {
     profileName,
+    wmClass: args['class'] || null,
     appName: profileName ? `TuxChat - ${profileName}` : 'TuxChat',
     appIcon: args['app-icon'] || path.join(__dirname, '..', '..', 'build', 'icon.png'),
     url: args['url'] || 'https://web.whatsapp.com',

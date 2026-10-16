@@ -3,6 +3,7 @@
 const { Menu, app } = require('electron');
 const { openAddSessionDialog, openDeleteSessionDialog, openRenameSessionDialog, canRenameSelf } = require('../sessions');
 const { openSettingsDialog } = require('../deepLinks');
+const { openSessionColorDialog } = require('../sessionColor');
 const { t } = require('../i18n');
 
 function buildMenu() {
@@ -35,6 +36,10 @@ function buildMenu() {
         {
           label: t('menu.deleteSession'),
           click: () => openDeleteSessionDialog(),
+        },
+        {
+          label: t('menu.sessionColor'),
+          click: () => openSessionColorDialog(),
         },
         { type: 'separator' },
         {

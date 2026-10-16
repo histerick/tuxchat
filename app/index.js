@@ -11,6 +11,7 @@ const { registerScreenSharing } = require('./screenSharing');
 const { createTray } = require('./tray');
 const { buildMenu } = require('./menus');
 const { registerSelfContext } = require('./sessions');
+const { registerSessionColor } = require('./sessionColor');
 const { ensureRouterRegistered, extractDeepLinkArg, translateToWebUrl } = require('./deepLinks');
 const { initUpdater } = require('./updater');
 
@@ -142,6 +143,15 @@ if (needsX11Relaunch) {
 
   app.setName(config.appName);
 
+  // Confirmed live: Electron ignores --class and derives the window's
+  // WM_CLASS (X11) / app_id (Wayland) from the desktop name instead —
+  // package.json's "tuxchat.desktop" for every session. GNOME then folds
+  // all sessions into the main icon, and since notifications carry the
+  // same desktop name, they all land on that icon too. Pointing it at
+  // this session's own .desktop (StartupWMClass=<class>, see sessions/)
+  // gives each one its own dock icon, pin and notifications.
+  if (config.wmClass) app.setDesktopName(`${config.wmClass}.desktop`);
+
   // Each profile is launched with its own --user-data-dir, so the lock is
   // naturally scoped per profile rather than per machine.
   const gotLock = app.requestSingleInstanceLock();
@@ -173,7 +183,8 @@ if (needsX11Relaunch) {
 
       const mainWindow = createMainWindow(config);
       const tray = createTray(mainWindow, config);
-      registerSelfContext(mainWindow, tray, config.profileName);
+      registerSelfContext(mainWindow, tray, config.profileName, config.wmClass);
+      registerSessionColor(mainWindow, tray, config);
       buildMenu();
       ensureRouterRegistered();
       initUpdater(config);

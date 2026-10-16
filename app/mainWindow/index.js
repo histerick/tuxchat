@@ -1,7 +1,8 @@
 'use strict';
 
-const { app, BrowserWindow, session, shell } = require('electron');
+const { app, BrowserWindow, Menu, clipboard, session, shell } = require('electron');
 const path = require('node:path');
+const { t } = require('../i18n');
 
 // WhatsApp Web rejects Electron's default UA ("... Electron/44.4.3 ...")
 // as an unsupported browser and asks to "update Chrome". This strips the
@@ -54,6 +55,20 @@ function routeExternalLinks(win, appUrl) {
   });
 }
 
+// Electron ships no context menu at all, so right-clicking a link in a
+// chat (a Zoom/Meet invite, say) did nothing. Copying it lets the user
+// paste it wherever they want — another browser, a calendar, the Zoom
+// app — instead of only ever opening it in the default browser.
+function addLinkContextMenu(win) {
+  win.webContents.on('context-menu', (_event, params) => {
+    if (!params.linkURL) return;
+    Menu.buildFromTemplate([
+      { label: t('contextMenu.copyLink'), click: () => clipboard.writeText(params.linkURL) },
+      { label: t('contextMenu.openLink'), click: () => openExternally(params.linkURL) },
+    ]).popup({ window: win });
+  });
+}
+
 function createMainWindow(config) {
   session.defaultSession.setUserAgent(DESKTOP_CHROME_UA);
 
@@ -72,6 +87,7 @@ function createMainWindow(config) {
 
   win.webContents.setUserAgent(DESKTOP_CHROME_UA);
   routeExternalLinks(win, config.url);
+  addLinkContextMenu(win);
   win.loadURL(config.url);
 
   // Electron syncs the window title to the loaded page's document.title by

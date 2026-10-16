@@ -33,6 +33,13 @@ window.TUXCHAT_STRINGS = {
       confirm: 'Renombrar',
       mainCantRename: 'La sesión principal no se puede renombrar desde acá.',
     },
+    colorDialog: {
+      windowTitle: 'Color de la sesión',
+      heading: 'Color de la sesión',
+      hint: 'Se muestra como una franja arriba de la ventana, para distinguir esta cuenta de las demás.',
+      none: 'Sin color',
+      close: 'Cerrar',
+    },
     linksSettingsDialog: {
       windowTitle: 'Enlaces de WhatsApp',
       heading: 'Enlaces de WhatsApp (whatsapp://)',
@@ -85,6 +92,13 @@ window.TUXCHAT_STRINGS = {
       cancel: 'Cancel',
       confirm: 'Rename',
       mainCantRename: "The main session can't be renamed from here.",
+    },
+    colorDialog: {
+      windowTitle: 'Session color',
+      heading: 'Session color',
+      hint: 'Shown as a strip along the top of the window, to tell this account apart from the others.',
+      none: 'No color',
+      close: 'Close',
     },
     linksSettingsDialog: {
       windowTitle: 'WhatsApp links',
