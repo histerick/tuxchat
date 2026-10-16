@@ -49,9 +49,10 @@ same way, from the same menu.
 
 Each session shows up as its own app in the dock: you can pin each one
 separately, and each one receives its own notifications. **Sessions >
-Session color...** gives a session a color — shown as a strip along the
-top of the window and on its icon (window, tray and dock) — so you can
-tell your accounts apart at a glance.
+Session color...** gives a session a color — it tints the title bar (a
+deep shade under a dark system theme, a pale one under a light theme) and
+the icon (window, tray and dock) — so you can tell your accounts apart at
+a glance.
 
 ## WhatsApp links (whatsapp://)
 

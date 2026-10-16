@@ -1,8 +1,9 @@
 'use strict';
 
-const { app, BrowserWindow, Menu, clipboard, session, shell } = require('electron');
+const { app, BrowserWindow, Menu, WebContentsView, clipboard, session, shell } = require('electron');
 const path = require('node:path');
 const { t } = require('../i18n');
+const titlebar = require('./titlebar');
 
 // WhatsApp Web rejects Electron's default UA ("... Electron/44.4.3 ...")
 // as an unsupported browser and asks to "update Chrome". This strips the
@@ -32,17 +33,17 @@ function openExternally(url) {
 // otherwise open as a bare Electron popup sharing this session. Send them
 // to the user's default browser instead — which, if it's already running,
 // just gets a new tab in its existing window.
-function routeExternalLinks(win, appUrl) {
+function routeExternalLinks(contents, appUrl) {
   const appOrigin = new URL(appUrl).origin;
 
-  win.webContents.setWindowOpenHandler(({ url }) => {
+  contents.setWindowOpenHandler(({ url }) => {
     openExternally(url);
     return { action: 'deny' };
   });
 
   // Plain same-window navigations away from WhatsApp Web (a link without
   // target="_blank") would replace the whole app with the external page.
-  win.webContents.on('will-navigate', (event, url) => {
+  contents.on('will-navigate', (event, url) => {
     let origin;
     try {
       origin = new URL(url).origin;
@@ -59,8 +60,8 @@ function routeExternalLinks(win, appUrl) {
 // chat (a Zoom/Meet invite, say) did nothing. Copying it lets the user
 // paste it wherever they want — another browser, a calendar, the Zoom
 // app — instead of only ever opening it in the default browser.
-function addLinkContextMenu(win) {
-  win.webContents.on('context-menu', (_event, params) => {
+function addLinkContextMenu(win, contents) {
+  contents.on('context-menu', (_event, params) => {
     if (!params.linkURL) return;
     Menu.buildFromTemplate([
       { label: t('contextMenu.copyLink'), click: () => clipboard.writeText(params.linkURL) },
@@ -69,14 +70,43 @@ function addLinkContextMenu(win) {
   });
 }
 
+let whatsappContents = null;
+
+// Everything that talks to WhatsApp Web itself (deep links, reload, zoom,
+// devtools) goes through this: the window's own webContents is now the
+// title bar, not the page.
+function getWhatsAppContents() {
+  return whatsappContents;
+}
+
 function createMainWindow(config) {
   session.defaultSession.setUserAgent(DESKTOP_CHROME_UA);
 
+  // GNOME draws the native title bar and menu bar and apps can't color
+  // them, so the window is frameless and draws its own bar (titlebar.html)
+  // in the session color. The minimize/maximize/close buttons are still
+  // Electron's own (titleBarOverlay), recolored to match.
+  const initial = titlebar.currentColors();
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
     title: config.appName,
     icon: config.appIcon,
+    titleBarStyle: 'hidden',
+    titleBarOverlay: { color: initial.bg, symbolColor: initial.fg, height: titlebar.HEIGHT },
+    backgroundColor: initial.bg,
+    webPreferences: {
+      preload: path.join(__dirname, 'titlebar-preload.js'),
+      contextIsolation: true,
+      sandbox: true,
+    },
+  });
+  win.loadFile(path.join(__dirname, 'titlebar.html'));
+
+  // WhatsApp Web lives in its own view below the bar, in the default
+  // session like before, so logins, permissions and screen sharing are
+  // unaffected.
+  const view = new WebContentsView({
     webPreferences: {
       preload: path.join(__dirname, '..', 'browser', 'preload.js'),
       contextIsolation: true,
@@ -84,17 +114,36 @@ function createMainWindow(config) {
       backgroundThrottling: false,
     },
   });
+  whatsappContents = view.webContents;
+  win.contentView.addChildView(view);
 
-  win.webContents.setUserAgent(DESKTOP_CHROME_UA);
-  routeExternalLinks(win, config.url);
-  addLinkContextMenu(win);
-  win.loadURL(config.url);
+  // Fullscreen hands the whole screen to WhatsApp: the bar's job (title,
+  // menus, window buttons) doesn't apply there.
+  const layout = () => {
+    const [width, height] = win.getContentSize();
+    const top = win.isFullScreen() ? 0 : titlebar.HEIGHT;
+    view.setBounds({ x: 0, y: top, width, height: height - top });
+  };
+  layout();
+  win.on('resize', layout);
+  win.on('enter-full-screen', layout);
+  win.on('leave-full-screen', layout);
+
+  // Keystrokes should land in WhatsApp, not in the bar, whenever the
+  // window is brought forward.
+  win.on('focus', () => view.webContents.focus());
+
+  view.webContents.setUserAgent(DESKTOP_CHROME_UA);
+  routeExternalLinks(view.webContents, config.url);
+  addLinkContextMenu(win, view.webContents);
+  view.webContents.loadURL(config.url);
+
+  titlebar.attach(win, config.appName);
 
   // Electron syncs the window title to the loaded page's document.title by
-  // default, and WhatsApp Web sets its own ("WhatsApp", or "(3) WhatsApp"
-  // for the unread badge) — which would silently overwrite our profile
-  // name and defeat the point of being able to tell sessions apart in the
-  // dock hover preview / Alt-Tab. Keep our own title pinned instead.
+  // default — now the bar's page — which would silently overwrite our
+  // profile name and defeat the point of being able to tell sessions
+  // apart in the dock hover preview / Alt-Tab. Keep our own title pinned.
   win.on('page-title-updated', (event) => {
     event.preventDefault();
   });
@@ -112,4 +161,4 @@ function createMainWindow(config) {
   return win;
 }
 
-module.exports = { createMainWindow };
+module.exports = { createMainWindow, getWhatsAppContents };

@@ -36,6 +36,7 @@ export default [
       'app/i18n/renderer-strings.js',
       'app/updater/changelog-dialog.js',
       'app/sessionColor/dialog.js',
+      'app/mainWindow/titlebar-renderer.js',
     ],
     languageOptions: {
       ecmaVersion: 2023,
@@ -57,6 +58,7 @@ export default [
       'app/i18n/renderer-strings.js',
       'app/updater/changelog-dialog.js',
       'app/sessionColor/dialog.js',
+      'app/mainWindow/titlebar-renderer.js',
     ],
     languageOptions: {
       ecmaVersion: 2023,

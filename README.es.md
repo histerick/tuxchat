@@ -50,9 +50,10 @@ con su propio ícono y entrada en el menú de aplicaciones. **Renombrar** y
 
 Cada sesión aparece como una app aparte en el dock: podés anclar cada una
 por separado y cada una recibe sus propias notificaciones. **Sesiones >
-Color de la sesión...** le asigna un color a la sesión — se ve como una
-franja arriba de la ventana y en su ícono (ventana, bandeja y dock) —
-para distinguir tus cuentas de un vistazo.
+Color de la sesión...** le asigna un color a la sesión — tiñe la barra
+de título (un tono oscuro con el tema oscuro del sistema, uno claro con el
+tema claro) y el ícono (ventana, bandeja y dock) — para distinguir tus
+cuentas de un vistazo.
 
 ## Enlaces de WhatsApp (whatsapp://)
 

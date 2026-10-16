@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFile } = require('node:child_process');
 const { updateTrayName } = require('../tray');
+const titlebar = require('../mainWindow/titlebar');
 const { t, currentLocale } = require('../i18n');
 
 // Each extra session is a full, separate Electron process (~150-300MB RAM
@@ -406,7 +407,7 @@ ipcMain.handle('sessions:rename', (_event, newName) => {
   if (result.ok) {
     selfContext.profileName = result.profileName;
     const appName = `TuxChat - ${result.profileName}`;
-    selfContext.mainWindow.setTitle(appName);
+    titlebar.setTitle(appName);
     updateTrayName(selfContext.tray, selfContext.mainWindow, appName);
   }
   return result;

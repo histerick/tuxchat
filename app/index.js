@@ -5,13 +5,13 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { app, BrowserWindow, session } = require('electron');
 const { getConfig } = require('./config');
-const { createMainWindow } = require('./mainWindow');
+const { createMainWindow, getWhatsAppContents } = require('./mainWindow');
 const { registerPermissionHandlers } = require('./permissions');
 const { registerScreenSharing } = require('./screenSharing');
 const { createTray } = require('./tray');
 const { buildMenu } = require('./menus');
 const { registerSelfContext } = require('./sessions');
-const { registerSessionColor } = require('./sessionColor');
+const { initSessionColor, registerSessionColor } = require('./sessionColor');
 const { ensureRouterRegistered, extractDeepLinkArg, translateToWebUrl } = require('./deepLinks');
 const { initUpdater } = require('./updater');
 
@@ -165,7 +165,7 @@ if (needsX11Relaunch) {
       const deepLink = extractDeepLinkArg(argv);
       if (deepLink) {
         const translated = translateToWebUrl(deepLink);
-        if (translated) win.loadURL(translated);
+        if (translated) getWhatsAppContents().loadURL(translated);
       }
 
       if (win.isMinimized()) win.restore();
@@ -181,11 +181,12 @@ if (needsX11Relaunch) {
       registerPermissionHandlers(session.defaultSession);
       registerScreenSharing(session.defaultSession);
 
+      initSessionColor();
       const mainWindow = createMainWindow(config);
       const tray = createTray(mainWindow, config);
       registerSelfContext(mainWindow, tray, config.profileName, config.wmClass);
       registerSessionColor(mainWindow, tray, config);
-      buildMenu();
+      buildMenu(mainWindow);
       ensureRouterRegistered();
       initUpdater(config);
     }).catch((err) => {

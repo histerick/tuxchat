@@ -6,11 +6,12 @@ const path = require('node:path');
 const { currentLocale } = require('../i18n');
 const { setSessionIcon } = require('../sessions');
 const { tintIcon } = require('./tint');
+const titlebar = require('../mainWindow/titlebar');
 
 // A fixed palette rather than a free color picker: these stay distinct
-// from each other at a glance and readable over WhatsApp Web's own
-// header in both its light and dark themes. Validated against on set, so
-// nothing else ever gets interpolated into the injected CSS below.
+// from each other at a glance, and the title bar's dark/light shades of
+// each were checked for text contrast (see mainWindow/titlebar.js).
+// Anything else sent over IPC is rejected on set.
 const PALETTE = ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#00acc1', '#1e88e5', '#8e24aa', '#d81b60'];
 
 // Per profile, not shared like deep-links.json: each session picks its
@@ -33,38 +34,9 @@ function writeColor(color) {
   fs.writeFileSync(prefsFile(), JSON.stringify({ color }));
 }
 
-// The native title bar is drawn by the window manager (GNOME/Mutter) and
-// apps can't color it, so the color goes on a strip overlaid on the top
-// edge of the page instead. pointer-events: none keeps whatever
-// WhatsApp draws underneath clickable.
-function stripCss(color) {
-  return `html::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 5px;
-    background: ${color};
-    z-index: 2147483647;
-    pointer-events: none;
-  }`;
-}
-
 let mainWindow = null;
 let tray = null;
 let config = null;
-let insertedKey = null;
-
-async function applyColor(color) {
-  const contents = mainWindow.webContents;
-  if (insertedKey) {
-    const key = insertedKey;
-    insertedKey = null;
-    await contents.removeInsertedCSS(key).catch(() => {});
-  }
-  if (color) insertedKey = await contents.insertCSS(stripCss(color));
-}
 
 // Window icon (Alt-Tab), tray icon and, for extra sessions, the dock
 // icon all take the session color, so the account is recognizable even
@@ -90,23 +62,20 @@ function registerSessionColor(win, trayIcon, appConfig) {
   config = appConfig;
   const color = readColor();
   if (color) applyIcon(color, { updateDock: false });
-  // insertCSS only lasts for the current document, so it has to be
-  // re-applied after every load (WhatsApp's own reloads, deep links,
-  // View > Reload).
-  win.webContents.on('dom-ready', () => {
-    insertedKey = null;
-    applyColor(readColor()).catch(() => {});
-  });
+}
+
+// Called before the main window exists, so the title bar is created in
+// the session color instead of flashing the neutral one first.
+function initSessionColor() {
+  titlebar.setColor(readColor());
 }
 
 ipcMain.handle('session-color:get', () => ({ color: readColor(), palette: PALETTE }));
-ipcMain.handle('session-color:set', async (_event, color) => {
+ipcMain.handle('session-color:set', (_event, color) => {
   const value = PALETTE.includes(color) ? color : null;
   writeColor(value);
-  if (mainWindow) {
-    applyIcon(value);
-    await applyColor(value);
-  }
+  titlebar.setColor(value);
+  if (mainWindow) applyIcon(value);
   return { ok: true, color: value };
 });
 
@@ -128,4 +97,4 @@ function openSessionColorDialog() {
   return win;
 }
 
-module.exports = { registerSessionColor, openSessionColorDialog };
+module.exports = { initSessionColor, registerSessionColor, openSessionColorDialog };

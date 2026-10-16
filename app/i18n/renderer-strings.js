@@ -36,7 +36,7 @@ window.TUXCHAT_STRINGS = {
     colorDialog: {
       windowTitle: 'Color de la sesión',
       heading: 'Color de la sesión',
-      hint: 'Se muestra como una franja arriba de la ventana, para distinguir esta cuenta de las demás.',
+      hint: 'Tiñe la barra de título y el ícono, para distinguir esta cuenta de las demás.',
       none: 'Sin color',
       close: 'Cerrar',
     },
@@ -96,7 +96,7 @@ window.TUXCHAT_STRINGS = {
     colorDialog: {
       windowTitle: 'Session color',
       heading: 'Session color',
-      hint: 'Shown as a strip along the top of the window, to tell this account apart from the others.',
+      hint: 'Tints the title bar and the icon, to tell this account apart from the others.',
       none: 'No color',
       close: 'Close',
     },

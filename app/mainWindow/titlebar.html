@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title></title>
+    <style>
+      :root {
+        --bg: #303030;
+        --fg: #ffffff;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--fg);
+        font: 13px system-ui, sans-serif;
+        user-select: none;
+      }
+      .bar {
+        position: relative;
+        display: flex;
+        align-items: center;
+        height: 38px;
+        -webkit-app-region: drag;
+      }
+      .menus {
+        display: flex;
+        gap: 2px;
+        padding-left: 6px;
+        -webkit-app-region: no-drag;
+        z-index: 1;
+      }
+      .menus button {
+        background: none;
+        border: none;
+        border-radius: 6px;
+        color: inherit;
+        font: inherit;
+        padding: 5px 9px;
+        cursor: default;
+      }
+      .menus button:hover {
+        background: color-mix(in srgb, currentColor 14%, transparent);
+      }
+      .menus button:focus-visible {
+        outline: 2px solid color-mix(in srgb, currentColor 50%, transparent);
+        outline-offset: -2px;
+      }
+      /* Centered on the whole window like GNOME's own titles; the side
+         padding keeps it clear of the menus and the window buttons. */
+      .title {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 200px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bar">
+      <nav class="menus" id="menus"></nav>
+      <div class="title" id="title"></div>
+    </div>
+    <script src="titlebar-renderer.js"></script>
+  </body>
+</html>
