@@ -30,6 +30,7 @@
         gap: 2px;
         padding-left: 6px;
         -webkit-app-region: no-drag;
+        position: relative;
         z-index: 1;
       }
       .menus button {
@@ -67,8 +68,12 @@
   </head>
   <body>
     <div class="bar">
-      <nav class="menus" id="menus"></nav>
+      <!-- Order matters: app-region is inherited, so the full-width title
+           is itself a drag region. Electron applies regions in document
+           order, so the menus' no-drag must come after it or the title
+           swallows their clicks (they'd drag the window instead). -->
       <div class="title" id="title"></div>
+      <nav class="menus" id="menus"></nav>
     </div>
     <script src="titlebar-renderer.js"></script>
   </body>
