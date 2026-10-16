@@ -119,8 +119,14 @@ function createMainWindow(config) {
 
   // Fullscreen hands the whole screen to WhatsApp: the bar's job (title,
   // menus, window buttons) doesn't apply there.
+  //
+  // Sized from getBounds(), not getContentSize(): the window is frameless,
+  // so both are the same, but under X11 minimizing fires a resize with a
+  // shrunken size and the resize on restore arrives while getContentSize()
+  // still reports that stale size, leaving WhatsApp short of the window's
+  // right and bottom edges.
   const layout = () => {
-    const [width, height] = win.getContentSize();
+    const { width, height } = win.getBounds();
     const top = win.isFullScreen() ? 0 : titlebar.HEIGHT;
     view.setBounds({ x: 0, y: top, width, height: height - top });
   };
