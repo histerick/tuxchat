@@ -48,6 +48,12 @@ sesión de WhatsApp completamente aislada (login, caché y datos propios),
 con su propio ícono y entrada en el menú de aplicaciones. **Renombrar** y
 **Eliminar** funcionan igual, desde el mismo menú.
 
+Cada sesión aparece como una app aparte en el dock: podés anclar cada una
+por separado y cada una recibe sus propias notificaciones. **Sesiones >
+Color de la sesión...** le asigna un color a la sesión — se ve como una
+franja arriba de la ventana y en su ícono (ventana, bandeja y dock) —
+para distinguir tus cuentas de un vistazo.
+
 ## Enlaces de WhatsApp (whatsapp://)
 
 TuxChat se registra ante el sistema como manejador del esquema
@@ -63,7 +69,8 @@ WhatsApp...**.
 
 Los enlaces que llegan en un chat (Zoom, Google Meet, cualquier página
 web) se abren en tu navegador predeterminado — como pestaña nueva si ya
-está abierto — en vez de en una ventana emergente de TuxChat.
+está abierto — en vez de en una ventana emergente de TuxChat. Con clic
+derecho sobre un enlace podés **Copiar enlace** y pegarlo donde quieras.
 
 ## Desarrollo
 

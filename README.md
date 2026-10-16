@@ -47,6 +47,12 @@ isolated WhatsApp session (its own login, cache and data), with its own
 icon and entry in the applications menu. **Rename** and **Delete** work the
 same way, from the same menu.
 
+Each session shows up as its own app in the dock: you can pin each one
+separately, and each one receives its own notifications. **Sessions >
+Session color...** gives a session a color — shown as a strip along the
+top of the window and on its icon (window, tray and dock) — so you can
+tell your accounts apart at a glance.
+
 ## WhatsApp links (whatsapp://)
 
 TuxChat registers itself with the system as the handler for the
@@ -61,7 +67,8 @@ choice); this is managed from **Sessions > WhatsApp links...**.
 
 Links you receive in a chat (Zoom, Google Meet, any web page) open in your
 default browser — as a new tab if it's already open — instead of in a
-TuxChat popup window.
+TuxChat popup window. Right-click a link to **Copy link** and paste it
+wherever you want.
 
 ## Development
 
