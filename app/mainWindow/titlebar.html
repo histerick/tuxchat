@@ -240,6 +240,61 @@
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
       }
 
+      /* Unread messages counter badge */
+      .session-unread-badge {
+        position: absolute;
+        top: -1px;
+        right: 8px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 4.5px;
+        box-sizing: border-box;
+        border-radius: 9px;
+        background: #25d366;
+        color: #0b141a;
+        border: 2px solid var(--sidebar-bg);
+        font-size: 11px;
+        font-weight: 800;
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 15;
+        pointer-events: none;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+        transform: scale(1);
+        transition:
+          transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+          opacity 0.15s ease;
+      }
+
+      .session-unread-badge[hidden] {
+        display: none !important;
+      }
+
+      .session-unread-badge.badge-bounce {
+        animation: badge-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      @keyframes badge-pop {
+        0% {
+          transform: scale(0.6);
+        }
+        50% {
+          transform: scale(1.22);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
       /* Discord-style Morphing Icon Button (Circle -> Squircle) */
       .session-btn {
         position: relative;

@@ -27,4 +27,7 @@ contextBridge.exposeInMainWorld("sessionsSidebar", {
     ipcRenderer.on("window:fullscreen", (_event, isFullscreen) =>
       callback(isFullscreen),
     ),
+  getUnreadCounts: () => ipcRenderer.invoke("sessions:get-unread-counts"),
+  onUnreadUpdated: (callback) =>
+    ipcRenderer.on("sessions:unread-updated", (_event, data) => callback(data)),
 });

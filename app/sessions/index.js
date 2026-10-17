@@ -583,28 +583,38 @@ function getSessionMuted(desktopId) {
   return s ? Boolean(s.muted) : false;
 }
 
-function setSessionMuted(desktopId, muted) {
-  const targetId = desktopId || getActiveSessionId() || "tuxchat";
-  const list = getStoredSessions();
+function findOrCreateStoredSession(list, targetId) {
   let item = list.find(
     (s) =>
-      s.desktopId === targetId || (s.slug && `tuxchat-${s.slug}` === targetId),
+      s.desktopId === targetId ||
+      (s.slug && `tuxchat-${s.slug}` === targetId) ||
+      (s.profileName && `tuxchat-${slugify(s.profileName)}` === targetId),
   );
 
-  if (!item && targetId === "tuxchat") {
+  if (!item) {
+    const all = listAllSessions();
+    const existing = all.find((s) => s.desktopId === targetId);
     item = {
-      desktopId: "tuxchat",
-      slug: "",
-      profileName: t("sessions.mainLabel"),
-      avatar: null,
-      color: null,
+      desktopId: targetId,
+      slug: (existing && existing.slug) || targetId.replace(/^tuxchat-/, ""),
+      profileName:
+        (existing && existing.profileName) ||
+        (targetId === "tuxchat" ? t("sessions.mainLabel") : targetId),
+      avatar: (existing && existing.avatar) || null,
+      color: (existing && existing.color) || null,
       muted: false,
       volume: 100,
+      hideInLinkPicker: false,
     };
     list.push(item);
   }
+  return item;
+}
 
-  if (!item) return false;
+function setSessionMuted(desktopId, muted) {
+  const targetId = desktopId || getActiveSessionId() || "tuxchat";
+  const list = getStoredSessions();
+  const item = findOrCreateStoredSession(list, targetId);
   item.muted = Boolean(muted);
   saveStoredSessions(list);
 
@@ -632,26 +642,13 @@ function setSessionVolume(desktopId, volume) {
   const targetId = desktopId || getActiveSessionId() || "tuxchat";
   const vol = Math.max(0, Math.min(100, Math.round(Number(volume) || 0)));
   const list = getStoredSessions();
-  let item = list.find(
-    (s) =>
-      s.desktopId === targetId || (s.slug && `tuxchat-${s.slug}` === targetId),
-  );
-
-  if (!item && targetId === "tuxchat") {
-    item = {
-      desktopId: "tuxchat",
-      slug: "",
-      profileName: t("sessions.mainLabel"),
-      avatar: null,
-      color: null,
-      muted: false,
-      volume: 100,
-    };
-    list.push(item);
-  }
-
-  if (!item) return false;
+  const item = findOrCreateStoredSession(list, targetId);
   item.volume = vol;
+  if (vol > 0 && item.muted) {
+    item.muted = false;
+  } else if (vol === 0) {
+    item.muted = true;
+  }
   saveStoredSessions(list);
 
   try {
@@ -670,26 +667,7 @@ function setSessionVolume(desktopId, volume) {
 function setSessionHideInLinkPicker(desktopId, hide) {
   const targetId = desktopId || "tuxchat";
   const list = getStoredSessions();
-  let item = list.find(
-    (s) =>
-      s.desktopId === targetId || (s.slug && `tuxchat-${s.slug}` === targetId),
-  );
-
-  if (!item && targetId === "tuxchat") {
-    item = {
-      desktopId: "tuxchat",
-      slug: "",
-      profileName: t("sessions.mainLabel"),
-      avatar: null,
-      color: null,
-      muted: false,
-      volume: 100,
-      hideInLinkPicker: false,
-    };
-    list.push(item);
-  }
-
-  if (!item) return false;
+  const item = findOrCreateStoredSession(list, targetId);
   item.hideInLinkPicker = Boolean(hide);
   saveStoredSessions(list);
   notifySessionsChanged();
@@ -699,28 +677,8 @@ function setSessionHideInLinkPicker(desktopId, hide) {
 function recordSessionLinkUsage(desktopId) {
   const targetId = desktopId || "tuxchat";
   const list = getStoredSessions();
-  let item = list.find(
-    (s) =>
-      s.desktopId === targetId || (s.slug && `tuxchat-${s.slug}` === targetId),
-  );
-
-  if (!item && targetId === "tuxchat") {
-    item = {
-      desktopId: "tuxchat",
-      slug: "",
-      profileName: t("sessions.mainLabel"),
-      avatar: null,
-      color: null,
-      muted: false,
-      volume: 100,
-      hideInLinkPicker: false,
-      lastLinkAt: Date.now(),
-    };
-    list.push(item);
-  } else if (item) {
-    item.lastLinkAt = Date.now();
-  }
-
+  const item = findOrCreateStoredSession(list, targetId);
+  item.lastLinkAt = Date.now();
   saveStoredSessions(list);
   notifySessionsChanged();
   return true;

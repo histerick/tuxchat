@@ -6,9 +6,36 @@ const sidebarEl = document.getElementById("sessions-sidebar");
 
 let currentActiveId = "tuxchat";
 let currentSessions = [];
+const unreadCounts = new Map(); // desktopId -> unread count
 
 let currentAddSessionLabel = "Add session";
 let currentMutedLabel = "Mute audio";
+
+function updateSessionUnreadBadge(desktopId, count) {
+  unreadCounts.set(desktopId, count);
+  const badge = sidebarEl.querySelector(
+    `.session-unread-badge[data-unread-badge="${desktopId}"]`,
+  );
+  if (!badge) return;
+
+  const hasUnread = count && count !== "0" && count !== 0;
+  if (hasUnread) {
+    const text = String(count);
+    if (badge.textContent !== text) {
+      badge.textContent = text;
+      badge.classList.remove("badge-bounce");
+      void badge.offsetWidth;
+      badge.classList.add("badge-bounce");
+    }
+    badge.hidden = false;
+  } else {
+    badge.textContent = "";
+    badge.hidden = true;
+  }
+}
+
+window.__updateSessionUnreadBadge = updateSessionUnreadBadge;
+window.__sessionUnreadCounts = unreadCounts;
 
 function renderTitlebar({ title, bg, fg, menus, addSessionLabel, mutedLabel }) {
   document.documentElement.style.setProperty("--bg", bg);
@@ -300,6 +327,19 @@ function buildSidebarDOM() {
       wrapper.appendChild(mutedBadge);
     }
 
+    // Unread conversations badge (top right)
+    const unreadBadge = document.createElement("div");
+    unreadBadge.className = "session-unread-badge";
+    unreadBadge.setAttribute("data-unread-badge", session.desktopId);
+    const unreadCount = unreadCounts.get(session.desktopId);
+    if (unreadCount && unreadCount !== "0" && unreadCount !== 0) {
+      unreadBadge.textContent = String(unreadCount);
+      unreadBadge.hidden = false;
+    } else {
+      unreadBadge.hidden = true;
+    }
+    wrapper.appendChild(unreadBadge);
+
     applySessionStyle(wrapper, session, isCurrent);
 
     // Floating Discord-style Tooltip
@@ -461,6 +501,25 @@ window.titlebar.onState(renderTitlebar);
 
 if (window.sessionsSidebar) {
   renderSidebar();
+
+  if (typeof window.sessionsSidebar.getUnreadCounts === "function") {
+    window.sessionsSidebar
+      .getUnreadCounts()
+      .then((counts) => {
+        if (counts) {
+          for (const [id, count] of Object.entries(counts)) {
+            updateSessionUnreadBadge(id, count);
+          }
+        }
+      })
+      .catch(() => {});
+  }
+
+  if (typeof window.sessionsSidebar.onUnreadUpdated === "function") {
+    window.sessionsSidebar.onUnreadUpdated(({ desktopId, count }) => {
+      updateSessionUnreadBadge(desktopId, count);
+    });
+  }
 
   window.sessionsSidebar.onChanged(() => {
     renderSidebar();

@@ -6,6 +6,7 @@ const {
   Menu,
   WebContentsView,
   clipboard,
+  ipcMain,
   session,
   shell,
 } = require("electron");
@@ -89,6 +90,113 @@ let currentMainWindow = null;
 let currentConfig = null;
 let activeSessionId = "tuxchat";
 const sessionViews = new Map(); // desktopId -> WebContentsView
+const sessionUnreadCounts = new Map(); // desktopId -> unread count
+
+function getDesktopIdByWebContents(sender) {
+  if (!sender) return null;
+  for (const [id, view] of sessionViews.entries()) {
+    if (
+      view &&
+      view.webContents &&
+      (view.webContents === sender || view.webContents.id === sender.id)
+    ) {
+      return id;
+    }
+  }
+  return null;
+}
+
+function broadcastUnreadCount(desktopId, count) {
+  if (currentMainWindow && !currentMainWindow.isDestroyed()) {
+    try {
+      currentMainWindow.webContents.send("sessions:unread-updated", {
+        desktopId,
+        count,
+      });
+    } catch {
+      // Window may be closing
+    }
+  }
+
+  if (typeof app.setBadgeCount === "function") {
+    let total = 0;
+    for (const c of sessionUnreadCounts.values()) {
+      const n = parseInt(c, 10);
+      if (!isNaN(n)) total += n;
+    }
+    try {
+      app.setBadgeCount(total);
+    } catch {
+      // Set badge count not supported
+    }
+  }
+}
+
+ipcMain.on("session:unread-count", (event, count) => {
+  const desktopId = getDesktopIdByWebContents(event.sender);
+  if (!desktopId) return;
+  const normalized = count && count !== "0" && count !== 0 ? count : 0;
+  if (sessionUnreadCounts.get(desktopId) !== normalized) {
+    sessionUnreadCounts.set(desktopId, normalized);
+    broadcastUnreadCount(desktopId, normalized);
+  }
+});
+
+ipcMain.handle("sessions:get-unread-counts", () => {
+  const result = {};
+  for (const [id, count] of sessionUnreadCounts.entries()) {
+    result[id] = count;
+  }
+  return result;
+});
+
+function pollSessionUnreadCounts() {
+  for (const [id, view] of sessionViews.entries()) {
+    if (!view || !view.webContents || view.webContents.isDestroyed()) continue;
+    view.webContents
+      .executeJavaScript(`
+        (function() {
+          try {
+            const chatBtn = document.querySelector(
+              'button[data-navbar-item-index="0"], ' +
+              'button[aria-label="Conversas"], ' +
+              'button[aria-label="Chats"], ' +
+              'button[aria-label="Chats "], ' +
+              'button[aria-label="Conversaciones"]'
+            );
+            if (chatBtn) {
+              const container = chatBtn.closest("div") || chatBtn.parentElement;
+              if (container) {
+                const statusSpan = container.querySelector('[role="status"], [data-visualcompletion="ignore"]');
+                if (statusSpan) {
+                  const text = statusSpan.textContent.trim();
+                  const num = parseInt(text, 10);
+                  if (!isNaN(num) && num > 0) return text;
+                }
+              }
+            }
+            if (document.title) {
+              const match = document.title.match(/^\\((\\d+)\\)/);
+              if (match) return match[1];
+            }
+          } catch (_) {}
+          return 0;
+        })()
+      `)
+      .then((extracted) => {
+        const normalized =
+          extracted && extracted !== "0" && extracted !== 0 ? extracted : 0;
+        if (sessionUnreadCounts.get(id) !== normalized) {
+          sessionUnreadCounts.set(id, normalized);
+          broadcastUnreadCount(id, normalized);
+        }
+      })
+      .catch(() => {});
+  }
+}
+
+// Background poll every 2.5s to ensure unread badges sync across all sessions
+setInterval(pollSessionUnreadCounts, 2500);
 
 function getWhatsAppContents() {
   const view = sessionViews.get(activeSessionId);
@@ -156,8 +264,10 @@ function getOrCreateSessionView(desktopId) {
   });
 
   try {
-    const { getSessionMuted } = require("../sessions");
-    view.webContents.setAudioMuted(getSessionMuted(desktopId));
+    const { getSessionMuted, getSessionVolume } = require("../sessions");
+    const isMuted = getSessionMuted(desktopId);
+    const vol = getSessionVolume(desktopId);
+    view.webContents.setAudioMuted(isMuted || vol === 0);
   } catch {
     // Sessions module not yet available
   }
@@ -170,8 +280,10 @@ function getOrCreateSessionView(desktopId) {
     updateLayout();
     try {
       const { getSessionMuted, getSessionVolume } = require("../sessions");
-      view.webContents.setAudioMuted(getSessionMuted(desktopId));
-      applyVolumeToWebContents(view.webContents, getSessionVolume(desktopId));
+      const isMuted = getSessionMuted(desktopId);
+      const vol = getSessionVolume(desktopId);
+      view.webContents.setAudioMuted(isMuted || vol === 0);
+      applyVolumeToWebContents(view.webContents, vol, isMuted || vol === 0);
     } catch {
       // Sessions module not yet available
     }
@@ -214,43 +326,218 @@ function getOrCreateSessionView(desktopId) {
   return view;
 }
 
-function applyVolumeToWebContents(webContents, volumePercent) {
-  const fraction = Math.max(0, Math.min(1, (Number(volumePercent) || 0) / 100));
-  webContents
-    .executeJavaScript(
-      `
+function applyVolumeToWebContents(webContents, volumePercent, isMuted = false) {
+  const vol = Math.max(0, Math.min(100, Math.round(Number(volumePercent) || 0)));
+  const muted = Boolean(isMuted || vol === 0);
+  const fraction = muted ? 0 : vol / 100;
+
+  const script = `
     (() => {
-      window.__tuxchatInstanceVolume = ${fraction};
-      document.querySelectorAll('audio, video').forEach((el) => {
-        try { el.volume = ${fraction}; } catch (_) {}
-      });
+      // 1. Initialize audio interceptor if not already present
       if (!window.__tuxchatAudioHooked) {
         window.__tuxchatAudioHooked = true;
+        window.__tuxchatActiveAudioElements = window.__tuxchatActiveAudioElements || new Set();
+        window.__tuxchatAudioContexts = window.__tuxchatAudioContexts || new Set();
+
+        const volDesc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "volume") || {};
+        const origVolGet = volDesc.get;
+        const origVolSet = volDesc.set;
+
+        const mutedDesc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "muted") || {};
+        const origMutedGet = mutedDesc.get;
+        const origMutedSet = mutedDesc.set;
+
+        window.__tuxchatOrigMedia = { origVolGet, origVolSet, origMutedGet, origMutedSet };
+
+        function getFactor() {
+          if (window.__tuxchatInstanceMuted) return 0;
+          if (typeof window.__tuxchatInstanceVolume === 'number') {
+            return Math.max(0, Math.min(1, window.__tuxchatInstanceVolume));
+          }
+          return 1;
+        }
+
+        Object.defineProperty(HTMLMediaElement.prototype, "volume", {
+          configurable: true,
+          enumerable: true,
+          get() {
+            if (this.__tuxchatVirtualVolume !== undefined) {
+              return this.__tuxchatVirtualVolume;
+            }
+            return origVolGet ? origVolGet.call(this) : 1;
+          },
+          set(val) {
+            const num = Math.max(0, Math.min(1, Number(val) || 0));
+            this.__tuxchatVirtualVolume = num;
+            window.__tuxchatActiveAudioElements.add(this);
+            const real = num * getFactor();
+            if (origVolSet) origVolSet.call(this, real);
+          }
+        });
+
+        Object.defineProperty(HTMLMediaElement.prototype, "muted", {
+          configurable: true,
+          enumerable: true,
+          get() {
+            if (this.__tuxchatVirtualMuted !== undefined) {
+              return this.__tuxchatVirtualMuted;
+            }
+            return origMutedGet ? origMutedGet.call(this) : false;
+          },
+          set(val) {
+            const b = Boolean(val);
+            this.__tuxchatVirtualMuted = b;
+            window.__tuxchatActiveAudioElements.add(this);
+            const real = b || window.__tuxchatInstanceMuted || getFactor() === 0;
+            if (origMutedSet) origMutedSet.call(this, real);
+          }
+        });
+
         const origPlay = HTMLMediaElement.prototype.play;
         HTMLMediaElement.prototype.play = function(...args) {
-          if (typeof window.__tuxchatInstanceVolume === 'number') {
-            try { this.volume = window.__tuxchatInstanceVolume; } catch (_) {}
+          window.__tuxchatActiveAudioElements.add(this);
+          const v = this.__tuxchatVirtualVolume !== undefined ? this.__tuxchatVirtualVolume : 1;
+          const real = v * getFactor();
+          if (origVolSet) {
+            try { origVolSet.call(this, real); } catch(_) {}
+          }
+          if (origMutedSet && (window.__tuxchatInstanceMuted || getFactor() === 0)) {
+            try { origMutedSet.call(this, true); } catch(_) {}
           }
           return origPlay.apply(this, args);
         };
+
+        const origAudio = window.Audio;
+        if (typeof origAudio === 'function') {
+          window.Audio = function(...args) {
+            const el = new origAudio(...args);
+            window.__tuxchatActiveAudioElements.add(el);
+            const f = getFactor();
+            if (origVolSet) {
+              try { origVolSet.call(el, (el.__tuxchatVirtualVolume !== undefined ? el.__tuxchatVirtualVolume : 1) * f); } catch(_) {}
+            }
+            return el;
+          };
+          window.Audio.prototype = origAudio.prototype;
+        }
+
+        const origConnect = AudioNode.prototype.connect;
+        function hookContext(NativeContext) {
+          if (!NativeContext) return NativeContext;
+          const Wrapped = function(...args) {
+            const ctx = new NativeContext(...args);
+            window.__tuxchatAudioContexts.add(ctx);
+            try {
+              const masterGain = ctx.createGain();
+              masterGain.gain.value = getFactor();
+              origConnect.call(masterGain, ctx.destination);
+              ctx.__tuxchatMasterGain = masterGain;
+            } catch (_) {}
+            return ctx;
+          };
+          Wrapped.prototype = NativeContext.prototype;
+          return Wrapped;
+        }
+
+        AudioNode.prototype.connect = function(destination, outputIndex, inputIndex) {
+          if (destination && destination instanceof AudioDestinationNode) {
+            const ctx = destination.context;
+            if (ctx && ctx.__tuxchatMasterGain && this !== ctx.__tuxchatMasterGain) {
+              return origConnect.call(this, ctx.__tuxchatMasterGain, outputIndex, inputIndex);
+            }
+          }
+          return origConnect.apply(this, arguments);
+        };
+
+        if (window.AudioContext) window.AudioContext = hookContext(window.AudioContext);
+        if (window.webkitAudioContext) window.webkitAudioContext = hookContext(window.webkitAudioContext);
+      }
+
+      // 2. Set current instance volume and mute
+      window.__tuxchatInstanceVolume = ${fraction};
+      window.__tuxchatInstanceMuted = ${muted};
+      const factor = ${muted ? 0 : fraction};
+
+      const origVolSet = window.__tuxchatOrigMedia?.origVolSet;
+      const origMutedSet = window.__tuxchatOrigMedia?.origMutedSet;
+
+      document.querySelectorAll('audio, video').forEach((el) => {
+        if (window.__tuxchatActiveAudioElements) window.__tuxchatActiveAudioElements.add(el);
+      });
+
+      if (window.__tuxchatActiveAudioElements) {
+        for (const el of window.__tuxchatActiveAudioElements) {
+          try {
+            const v = el.__tuxchatVirtualVolume !== undefined ? el.__tuxchatVirtualVolume : 1;
+            if (origVolSet) {
+              origVolSet.call(el, v * factor);
+            } else {
+              el.volume = v * factor;
+            }
+            if (origMutedSet) {
+              if (${muted} || factor === 0) {
+                origMutedSet.call(el, true);
+              } else if (el.__tuxchatVirtualMuted !== undefined) {
+                origMutedSet.call(el, el.__tuxchatVirtualMuted);
+              } else {
+                origMutedSet.call(el, false);
+              }
+            } else if (${muted} || factor === 0) {
+              el.muted = true;
+            }
+          } catch (_) {}
+        }
+      }
+
+      if (window.__tuxchatAudioContexts) {
+        for (const ctx of window.__tuxchatAudioContexts) {
+          try {
+            if (ctx && ctx.__tuxchatMasterGain) {
+              ctx.__tuxchatMasterGain.gain.value = factor;
+              try {
+                ctx.__tuxchatMasterGain.gain.setValueAtTime(factor, ctx.currentTime);
+              } catch (_) {}
+            }
+          } catch (_) {}
+        }
       }
     })()
-  `,
-    )
-    .catch(() => {});
+  `;
+
+  webContents.executeJavaScript(script).catch(() => {});
 }
 
 function setAudioMutedForSession(desktopId, muted) {
   const view = sessionViews.get(desktopId);
   if (view && !view.webContents.isDestroyed()) {
-    view.webContents.setAudioMuted(Boolean(muted));
+    const isMuted = Boolean(muted);
+    let vol = 100;
+    try {
+      const { getSessionVolume } = require("../sessions");
+      vol = getSessionVolume(desktopId);
+    } catch {
+      vol = 100;
+    }
+    const effectiveMuted = isMuted || vol === 0;
+    view.webContents.setAudioMuted(effectiveMuted);
+    applyVolumeToWebContents(view.webContents, vol, effectiveMuted);
   }
 }
 
 function setVolumeForSession(desktopId, volumePercent) {
   const view = sessionViews.get(desktopId);
   if (view && !view.webContents.isDestroyed()) {
-    applyVolumeToWebContents(view.webContents, volumePercent);
+    const vol = Math.max(0, Math.min(100, Math.round(Number(volumePercent) || 0)));
+    let isMuted = false;
+    try {
+      const { getSessionMuted } = require("../sessions");
+      isMuted = getSessionMuted(desktopId);
+    } catch {
+      isMuted = false;
+    }
+    const effectiveMuted = isMuted || vol === 0;
+    view.webContents.setAudioMuted(effectiveMuted);
+    applyVolumeToWebContents(view.webContents, vol, effectiveMuted);
   }
 }
 
@@ -302,6 +589,10 @@ function removeSessionTab(desktopId) {
       console.error("Error closing session view:", e);
     }
     sessionViews.delete(desktopId);
+  }
+  if (sessionUnreadCounts.has(desktopId)) {
+    sessionUnreadCounts.delete(desktopId);
+    broadcastUnreadCount(desktopId, 0);
   }
   if (activeSessionId === desktopId) {
     switchSessionTab("tuxchat");
@@ -527,4 +818,7 @@ module.exports = {
   setVolumeForSession,
   sendWhatsAppMessageToSession,
   getLoadedSessionIds: () => Array.from(sessionViews.keys()),
+  sessionUnreadCounts,
+  broadcastUnreadCount,
+  applyVolumeToWebContents,
 };

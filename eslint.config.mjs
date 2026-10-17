@@ -10,6 +10,8 @@ const nodeGlobals = {
   URLSearchParams: "readonly",
   setTimeout: "readonly",
   setInterval: "readonly",
+  document: "readonly",
+  MutationObserver: "readonly",
 };
 
 const browserGlobals = {
@@ -22,6 +24,7 @@ const browserGlobals = {
   Node: "readonly",
   DOMParser: "readonly",
   localStorage: "readonly",
+  MutationObserver: "readonly",
 };
 
 export default [
