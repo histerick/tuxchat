@@ -1,273 +1,305 @@
-'use strict';
+"use strict";
 
-const { app, BrowserWindow, ipcMain } = require('electron');
-const fs = require('node:fs');
-const path = require('node:path');
-const { execFile } = require('node:child_process');
-const { updateTrayName } = require('../tray');
-const titlebar = require('../mainWindow/titlebar');
-const { t, currentLocale } = require('../i18n');
+const { app, BrowserWindow, Menu, ipcMain } = require("electron");
+const fs = require("node:fs");
+const path = require("node:path");
+const { execFile } = require("node:child_process");
+const { updateTrayName } = require("../tray");
+const titlebar = require("../mainWindow/titlebar");
+const {
+  switchSessionTab,
+  removeSessionTab,
+  getActiveSessionId,
+} = require("../mainWindow");
+const {
+  openSessionModal,
+  openDeleteModal,
+  resizeSessionModal,
+  closeSessionModal,
+} = require("./modal-manager");
+const { t } = require("../i18n");
 
-// Each extra session is a full, separate Electron process (~150-300MB RAM
-// each), so this cap is resource protection, not anti-spam. One constant,
-// easy to bump if 4 turns out too tight.
-const MAX_SESSIONS = 4;
+// Each extra session tab runs an isolated partition
+const MAX_SESSIONS = 6;
 
-// Mirrors WhatsApp's own group-name limit, so it reads as a familiar
-// constraint in this app rather than an arbitrary one — and keeps names
-// short enough to stay legible in the dock/tray at a glance.
+// Mirrors WhatsApp's own group-name limit
 const MAX_NAME_LENGTH = 25;
 
-const HOME = app.getPath('home');
-const APPLICATIONS_DIR = path.join(HOME, '.local', 'share', 'applications');
-const LAUNCHERS_DIR = path.join(HOME, '.local', 'bin');
-const ICONS_DIR = path.join(HOME, '.local', 'share', 'icons', 'hicolor', '512x512', 'apps');
-const MAIN_ICON = path.join(__dirname, '..', '..', 'build', 'icon.png');
-// Session-colored copies of the icon (see sessionColor/). Referenced from
-// the .desktop by absolute path with the color in the file name, so a
-// color change is a new path: GNOME's dock caches icons by name and
-// wouldn't otherwise notice the same file being overwritten.
-const TINTED_ICONS_DIR = path.join(HOME, '.local', 'share', 'tuxchat', 'icons');
+const HOME = app.getPath("home");
+const APPLICATIONS_DIR = path.join(HOME, ".local", "share", "applications");
+const LAUNCHERS_DIR = path.join(HOME, ".local", "bin");
+const ICONS_DIR = path.join(
+  HOME,
+  ".local",
+  "share",
+  "icons",
+  "hicolor",
+  "512x512",
+  "apps",
+);
+const MAIN_ICON = path.join(__dirname, "..", "..", "build", "icon.png");
+const TINTED_ICONS_DIR = path.join(HOME, ".local", "share", "tuxchat", "icons");
+const SESSIONS_CONFIG_DIR = path.join(HOME, ".config", "tuxchat");
+const SESSIONS_JSON_PATH = path.join(SESSIONS_CONFIG_DIR, "sessions.json");
 
-// Matches both the main profile's `tuxchat.desktop` (no suffix) and extra
-// sessions' `tuxchat-<slug>.desktop`, same naming already used by hand for
-// the "Trabajo" session.
+function getStoredSessions() {
+  if (!fs.existsSync(SESSIONS_JSON_PATH)) return [];
+  try {
+    const data = JSON.parse(fs.readFileSync(SESSIONS_JSON_PATH, "utf8"));
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredSessions(sessions) {
+  try {
+    fs.mkdirSync(SESSIONS_CONFIG_DIR, { recursive: true });
+    fs.writeFileSync(
+      SESSIONS_JSON_PATH,
+      JSON.stringify(sessions, null, 2),
+      "utf8",
+    );
+  } catch (err) {
+    console.error("Failed to save sessions.json:", err);
+  }
+}
+
+function notifySessionsChanged() {
+  for (const win of BrowserWindow.getAllWindows()) {
+    try {
+      win.webContents.send("sessions:changed");
+    } catch {
+      // Window may be closing or destroyed
+    }
+  }
+}
+
 const DESKTOP_RE = /^tuxchat(?:-(.+))?\.desktop$/;
 
 function slugify(name) {
   return name
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function shQuote(value) {
   return `'${String(value).replace(/'/g, "'\\''")}'`;
 }
 
-// Shared by create and rename: catches empty names, names too long to stay
-// legible in the dock/tray, and control characters that would otherwise
-// get written verbatim into a `.desktop` file's Name= line.
 function validateProfileName(profileName) {
   if (!profileName) {
-    return t('sessions.errors.emptyName');
+    return t("sessions.errors.emptyName");
   }
   if (/[\r\n]/.test(profileName)) {
-    return t('sessions.errors.newlineName');
+    return t("sessions.errors.newlineName");
   }
   if (profileName.length > MAX_NAME_LENGTH) {
-    return t('sessions.errors.tooLong', MAX_NAME_LENGTH);
+    return t("sessions.errors.tooLong", MAX_NAME_LENGTH);
   }
   return null;
 }
 
 function listSessionSlugs() {
-  if (!fs.existsSync(APPLICATIONS_DIR)) return [];
-  return fs
-    .readdirSync(APPLICATIONS_DIR)
-    .map((file) => DESKTOP_RE.exec(file))
-    .filter(Boolean)
-    .map((match) => match[1] || '');
+  const stored = getStoredSessions();
+  const slugs = stored
+    .filter((s) => s.desktopId !== "tuxchat")
+    .map((s) => s.slug || slugify(s.profileName));
+  if (process.platform === "linux" && fs.existsSync(APPLICATIONS_DIR)) {
+    const linuxSlugs = fs
+      .readdirSync(APPLICATIONS_DIR)
+      .map((file) => DESKTOP_RE.exec(file))
+      .filter(Boolean)
+      .map((match) => match[1] || "")
+      .filter(Boolean);
+    return Array.from(new Set([...slugs, ...linuxSlugs]));
+  }
+  return slugs;
 }
 
 function sessionStatus() {
-  return { count: listSessionSlugs().length, max: MAX_SESSIONS };
+  return { count: listDeletableSessions().length + 1, max: MAX_SESSIONS };
 }
 
-function readProfileName(desktopPath) {
-  try {
-    const content = fs.readFileSync(desktopPath, 'utf8');
-    const match = /^Name=TuxChat - (.+)$/m.exec(content);
-    return match ? match[1] : null;
-  } catch {
-    return null;
-  }
-}
-
-// The main profile (slug '') is excluded on purpose: it isn't created by
-// this dialog, so it shouldn't be deletable from it either.
 function listDeletableSessions() {
-  if (!fs.existsSync(APPLICATIONS_DIR)) return [];
-  return fs
-    .readdirSync(APPLICATIONS_DIR)
-    .map((file) => DESKTOP_RE.exec(file))
-    .filter((match) => match && match[1])
-    .map((match) => {
-      const slug = match[1];
-      const desktopId = `tuxchat-${slug}`;
-      const desktopPath = path.join(APPLICATIONS_DIR, `${desktopId}.desktop`);
-      return { desktopId, profileName: readProfileName(desktopPath) || slug };
-    });
+  const stored = getStoredSessions();
+  const deletable = stored
+    .filter((s) => s.desktopId !== "tuxchat")
+    .map((s) => ({
+      desktopId: s.desktopId || `tuxchat-${s.slug}`,
+      slug: s.slug || slugify(s.profileName),
+      profileName: s.profileName,
+      avatar: s.avatar || null,
+      color: s.color || null,
+      muted: Boolean(s.muted),
+      volume: typeof s.volume === "number" ? s.volume : 100,
+      hideInLinkPicker: Boolean(s.hideInLinkPicker),
+      lastLinkAt: s.lastLinkAt || null,
+    }));
+
+  if (process.platform === "linux" && fs.existsSync(APPLICATIONS_DIR)) {
+    const existingIds = new Set(deletable.map((s) => s.desktopId));
+    fs.readdirSync(APPLICATIONS_DIR)
+      .map((file) => DESKTOP_RE.exec(file))
+      .filter((match) => match && match[1])
+      .forEach((match) => {
+        const slug = match[1];
+        const desktopId = `tuxchat-${slug}`;
+        if (!existingIds.has(desktopId)) {
+          const desktopPath = path.join(
+            APPLICATIONS_DIR,
+            `${desktopId}.desktop`,
+          );
+          let profileName = slug;
+          try {
+            const content = fs.readFileSync(desktopPath, "utf8");
+            const m = /^Name=TuxChat - (.+)$/m.exec(content);
+            if (m) profileName = m[1];
+          } catch {
+            // Ignore unreadable desktop entry
+          }
+          deletable.push({
+            desktopId,
+            slug,
+            profileName,
+            avatar: null,
+            color: null,
+            muted: false,
+            volume: 100,
+            hideInLinkPicker: false,
+          });
+        }
+      });
+  }
+
+  return deletable;
 }
 
-// Kills whatever is running against a profile, waits until nothing matches
-// it any more, then wipes the profile directory. Runs detached in its own
-// process so it survives even when it ends up killing its own caller
-// (self-delete: a session removing itself from its own menu) — a JS
-// setTimeout in the Electron process couldn't do that, since the process
-// dies with it. Tested against the real failure mode this guards against:
-// deleting a *running* session's data and killing it right after (instead
-// of first) leaves Chromium a window to recreate Cache/Service
-// Worker/Trust Tokens files in the profile dir before it dies, which is
-// exactly the "residuo por privacidad" this is meant to avoid.
-// TARGET_DIR travels via env, not argv, so this script's own command line
-// never contains the pattern it searches for and can't self-match it.
-const WIPE_HELPER_SCRIPT = `
-PATTERN="--user-data-dir=$TARGET_DIR"
-pkill -f -- "$PATTERN"
-for _ in $(seq 1 100); do
-  pgrep -f -- "$PATTERN" >/dev/null 2>&1 || break
-  sleep 0.1
-done
-pkill -9 -f -- "$PATTERN" 2>/dev/null
-[ -n "$TARGET_DIR" ] && rm -rf "$TARGET_DIR"
-`;
+function listAllSessions() {
+  const stored = getStoredSessions();
+  const mainCustom = stored.find((s) => s.desktopId === "tuxchat");
+  let mainProfileName = mainCustom
+    ? mainCustom.profileName
+    : t("sessions.mainLabel");
+  if (
+    mainProfileName === "TuxChat (principal)" ||
+    mainProfileName === "TuxChat (main)" ||
+    mainProfileName === "Principal" ||
+    mainProfileName === "Main"
+  ) {
+    mainProfileName = t("sessions.mainLabel");
+  }
+  const mainSession = {
+    desktopId: "tuxchat",
+    profileName: mainProfileName,
+    avatar: mainCustom ? mainCustom.avatar : null,
+    color: mainCustom ? mainCustom.color || null : null,
+    muted: mainCustom ? Boolean(mainCustom.muted) : false,
+    volume:
+      mainCustom && typeof mainCustom.volume === "number"
+        ? mainCustom.volume
+        : 100,
+    hideInLinkPicker: mainCustom ? Boolean(mainCustom.hideInLinkPicker) : false,
+    lastLinkAt: mainCustom ? mainCustom.lastLinkAt || null : null,
+  };
 
-function wipeUserDataDir(userDataDir) {
-  const child = execFile('/bin/bash', ['-c', WIPE_HELPER_SCRIPT], {
-    env: { ...process.env, TARGET_DIR: userDataDir },
-    detached: true,
-    stdio: 'ignore',
-  });
-  child.unref();
-}
-
-function deleteSession(desktopId) {
-  const match = /^tuxchat-(.+)$/.exec(desktopId || '');
-  if (!match) {
-    return { ok: false, error: t('sessions.errors.invalidSession') };
+  const deletable = listDeletableSessions();
+  const allMap = new Map();
+  allMap.set("tuxchat", mainSession);
+  for (const s of deletable) {
+    allMap.set(s.desktopId, s);
   }
 
-  const launcherPath = path.join(LAUNCHERS_DIR, `${desktopId}-launcher.sh`);
-  const desktopPath = path.join(APPLICATIONS_DIR, `${desktopId}.desktop`);
-  const iconPath = path.join(ICONS_DIR, `${desktopId}.png`);
-  const userDataDir = path.join(HOME, '.config', desktopId);
+  const result = [];
+  const addedIds = new Set();
 
-  if (!fs.existsSync(desktopPath)) {
-    return { ok: false, error: t('sessions.errors.notFound') };
+  for (const s of stored) {
+    const id = s.desktopId || (s.slug ? `tuxchat-${s.slug}` : "tuxchat");
+    if (allMap.has(id) && !addedIds.has(id)) {
+      result.push(allMap.get(id));
+      addedIds.add(id);
+    }
   }
 
-  try {
-    // Static config files: nothing else writes to these at runtime, so
-    // they're safe to remove immediately regardless of whether the
-    // session is currently running.
-    fs.rmSync(launcherPath, { force: true });
-    fs.rmSync(desktopPath, { force: true });
-    fs.rmSync(iconPath, { force: true });
-    removeTintedIcons(desktopId);
-  } catch (err) {
-    return { ok: false, error: t('sessions.errors.deleteFailed', err.message) };
+  if (!addedIds.has("tuxchat")) {
+    result.unshift(mainSession);
+    addedIds.add("tuxchat");
   }
 
-  refreshDesktopCaches();
-  wipeUserDataDir(userDataDir);
+  for (const [id, session] of allMap.entries()) {
+    if (!addedIds.has(id)) {
+      result.push(session);
+      addedIds.add(id);
+    }
+  }
 
-  return { ok: true };
+  return result;
 }
 
 function buildLauncherScript({ profileName, userDataDir, desktopId }) {
-  // Not process.execPath alone: under an AppImage, that's the binary
-  // inside that run's temporary mount — a fresh, different path every
-  // single launch. A launcher written with that path works once and then
-  // points at nothing. process.env.APPIMAGE is the AppImage runtime's own
-  // pointer to the stable .AppImage file the user actually downloaded;
-  // re-running *that* re-mounts fresh each time, which is exactly what a
-  // persisted launcher script needs. Unset (.deb, dev mode): execPath
-  // already is the stable path, same as before.
   const parts = [shQuote(process.env.APPIMAGE || process.execPath)];
-  // Dev mode (unpackaged): the Electron binary needs the app dir as its
-  // first argument, same as the hand-written launchers. A packaged build's
-  // executable already knows its own app, so this is skipped there.
   if (!app.isPackaged) parts.push(shQuote(app.getAppPath()));
-  // No --ozone-platform=x11 here: app/index.js detects NVIDIA+Wayland at
-  // startup and re-execs itself with that flag only when it's actually
-  // needed, regardless of how it was launched.
   parts.push(`--user-data-dir=${shQuote(userDataDir)}`);
   parts.push(`--class=${desktopId}`);
   parts.push(`--profile-name=${shQuote(profileName)}`);
 
   return `#!/bin/bash
-# Sesión "${profileName}" de TuxChat, generada desde el menú
-# "Sesiones > Añadir sesión...". Mismo patrón que las sesiones armadas a
-# mano: --user-data-dir aísla cookies/localStorage, --class aísla el
-# WM_CLASS para que el dock no la agrupe con otras sesiones.
-exec ${parts.join(' \\\n  ')}
+# Sesión "${profileName}" de TuxChat
+exec ${parts.join(" \\\n  ")}
 `;
 }
 
 function buildDesktopEntry({ profileName, launcherPath, desktopId, icon }) {
   const lines = [
-    '[Desktop Entry]',
-    'Version=1.0',
-    'Terminal=false',
-    'Type=Application',
+    "[Desktop Entry]",
+    "Version=1.0",
+    "Terminal=false",
+    "Type=Application",
     `Name=TuxChat - ${profileName}`,
-    `Comment=${t('sessions.desktopComment', profileName)}`,
+    `Comment=${t("sessions.desktopComment", profileName)}`,
     `Exec=${launcherPath}`,
   ];
   if (icon) lines.push(`Icon=${icon}`);
-  lines.push(`StartupWMClass=${desktopId}`, 'Categories=Network;InstantMessaging;');
-  return lines.join('\n') + '\n';
-}
-
-function readDesktopIcon(desktopPath) {
-  try {
-    const match = /^Icon=(.+)$/m.exec(fs.readFileSync(desktopPath, 'utf8'));
-    return match ? match[1] : null;
-  } catch {
-    return null;
-  }
+  lines.push(
+    `StartupWMClass=${desktopId}`,
+    "Categories=Network;InstantMessaging;",
+  );
+  return lines.join("\n") + "\n";
 }
 
 function removeTintedIcons(desktopId) {
   if (!fs.existsSync(TINTED_ICONS_DIR)) return;
   for (const file of fs.readdirSync(TINTED_ICONS_DIR)) {
-    if (file.startsWith(`${desktopId}-`)) fs.rmSync(path.join(TINTED_ICONS_DIR, file), { force: true });
+    if (file.startsWith(`${desktopId}-`))
+      fs.rmSync(path.join(TINTED_ICONS_DIR, file), { force: true });
   }
-}
-
-// Points an extra session's dock/launcher icon at a session-colored PNG,
-// or back at the default icon when pngBuffer is null. Only for sessions
-// this app created: the main profile's .desktop belongs to the AppImage
-// integration or the .deb, so it's never rewritten.
-function setSessionIcon(desktopId, colorKey, pngBuffer) {
-  if (!/^tuxchat-(.+)$/.test(desktopId || '')) return;
-  const desktopPath = path.join(APPLICATIONS_DIR, `${desktopId}.desktop`);
-  if (!fs.existsSync(desktopPath)) return;
-
-  removeTintedIcons(desktopId);
-  let icon = fs.existsSync(path.join(ICONS_DIR, `${desktopId}.png`)) ? desktopId : null;
-  if (pngBuffer) {
-    fs.mkdirSync(TINTED_ICONS_DIR, { recursive: true });
-    icon = path.join(TINTED_ICONS_DIR, `${desktopId}-${colorKey}.png`);
-    fs.writeFileSync(icon, pngBuffer);
-  }
-
-  const lines = fs
-    .readFileSync(desktopPath, 'utf8')
-    .split('\n')
-    .filter((line) => !line.startsWith('Icon='));
-  if (icon) lines.splice(lines.findIndex((line) => line.startsWith('Exec=')) + 1, 0, `Icon=${icon}`);
-  fs.writeFileSync(desktopPath, lines.join('\n'));
-  refreshDesktopCaches();
 }
 
 function refreshDesktopCaches() {
-  // Best-effort only: a stale cache means the icon/launcher shows up a
-  // little late, not that the session fails to work.
-  execFile('update-desktop-database', [APPLICATIONS_DIR], () => {});
-  execFile('gtk-update-icon-cache', ['-f', '-t', path.join(HOME, '.local', 'share', 'icons', 'hicolor')], () => {});
+  if (process.platform !== "linux") return;
+  execFile("update-desktop-database", [APPLICATIONS_DIR], () => {});
+  execFile(
+    "gtk-update-icon-cache",
+    ["-f", "-t", path.join(HOME, ".local", "share", "icons", "hicolor")],
+    () => {},
+  );
 }
 
-function launchSession(launcherPath) {
-  const child = execFile('/bin/bash', [launcherPath], { detached: true, stdio: 'ignore' });
-  child.unref();
-}
+function createSession(rawInput, rawAvatar) {
+  let profileName = "";
+  let avatar = null;
 
-function createSession(rawName) {
-  const profileName = (rawName || '').trim();
+  if (typeof rawInput === "object" && rawInput !== null) {
+    profileName = (rawInput.name || rawInput.profileName || "").trim();
+    avatar = rawInput.avatar || null;
+  } else {
+    profileName = (rawInput || "").trim();
+    avatar = rawAvatar || null;
+  }
+
   const nameError = validateProfileName(profileName);
   if (nameError) {
     return { ok: false, error: nameError };
@@ -275,205 +307,631 @@ function createSession(rawName) {
 
   const slug = slugify(profileName);
   if (!slug) {
-    return { ok: false, error: t('sessions.errors.invalidSlug') };
+    return { ok: false, error: t("sessions.errors.invalidSlug") };
   }
 
   const existing = listSessionSlugs();
   if (existing.includes(slug)) {
-    return { ok: false, error: t('sessions.errors.duplicate', profileName) };
+    return { ok: false, error: t("sessions.errors.duplicate", profileName) };
   }
   if (existing.length >= MAX_SESSIONS) {
-    return { ok: false, error: t('sessions.errors.limitReached', MAX_SESSIONS) };
+    return {
+      ok: false,
+      error: t("sessions.errors.limitReached", MAX_SESSIONS),
+    };
   }
 
   const desktopId = `tuxchat-${slug}`;
-  const launcherPath = path.join(LAUNCHERS_DIR, `${desktopId}-launcher.sh`);
-  const desktopPath = path.join(APPLICATIONS_DIR, `${desktopId}.desktop`);
-  const iconPath = path.join(ICONS_DIR, `${desktopId}.png`);
-  const userDataDir = path.join(HOME, '.config', desktopId);
+  const list = getStoredSessions();
+  list.push({ desktopId, slug, profileName, avatar });
+  saveStoredSessions(list);
 
-  try {
-    fs.mkdirSync(LAUNCHERS_DIR, { recursive: true });
-    fs.mkdirSync(APPLICATIONS_DIR, { recursive: true });
+  if (process.platform === "linux") {
+    try {
+      const launcherPath = path.join(LAUNCHERS_DIR, `${desktopId}-launcher.sh`);
+      const desktopPath = path.join(APPLICATIONS_DIR, `${desktopId}.desktop`);
+      const iconPath = path.join(ICONS_DIR, `${desktopId}.png`);
+      const userDataDir = path.join(HOME, ".config", desktopId);
 
-    const hasIcon = fs.existsSync(MAIN_ICON);
-    if (hasIcon) {
-      fs.mkdirSync(ICONS_DIR, { recursive: true });
-      fs.copyFileSync(MAIN_ICON, iconPath);
+      fs.mkdirSync(LAUNCHERS_DIR, { recursive: true });
+      fs.mkdirSync(APPLICATIONS_DIR, { recursive: true });
+
+      const hasIcon = fs.existsSync(MAIN_ICON);
+      if (hasIcon) {
+        fs.mkdirSync(ICONS_DIR, { recursive: true });
+        fs.copyFileSync(MAIN_ICON, iconPath);
+      }
+
+      fs.writeFileSync(
+        launcherPath,
+        buildLauncherScript({ profileName, userDataDir, desktopId }),
+      );
+      fs.chmodSync(launcherPath, 0o755);
+      fs.writeFileSync(
+        desktopPath,
+        buildDesktopEntry({
+          profileName,
+          launcherPath,
+          desktopId,
+          icon: hasIcon ? desktopId : null,
+        }),
+      );
+      refreshDesktopCaches();
+    } catch (err) {
+      console.error("Failed to create linux desktop entry:", err);
     }
-
-    fs.writeFileSync(launcherPath, buildLauncherScript({ profileName, userDataDir, desktopId }));
-    fs.chmodSync(launcherPath, 0o755);
-
-    fs.writeFileSync(
-      desktopPath,
-      buildDesktopEntry({ profileName, launcherPath, desktopId, icon: hasIcon ? desktopId : null })
-    );
-  } catch (err) {
-    return { ok: false, error: t('sessions.errors.createFailed', err.message) };
   }
 
-  refreshDesktopCaches();
-  launchSession(launcherPath);
+  notifySessionsChanged();
+  switchSessionTab(desktopId);
 
-  return { ok: true, profileName, desktopId };
+  return { ok: true, profileName, desktopId, avatar };
 }
 
-// Renaming only ever touches the *display* name (the .desktop Name= and
-// the --profile-name a relaunch will show in the title/tray). desktopId,
-// userDataDir, --class and the icon file stay exactly as they were, so
-// there's no directory to move and no WhatsApp session data at risk —
-// just the two small text files this same code already knows how to
-// write for a new session.
-function renameSession(desktopId, rawNewName) {
-  const match = /^tuxchat-(.+)$/.exec(desktopId || '');
-  if (!match) {
-    return { ok: false, error: t('sessions.errors.invalidSession') };
+function updateSession(payload) {
+  if (!payload || !payload.desktopId) {
+    return { ok: false, error: "ID de sessão inválido." };
   }
 
-  const profileName = (rawNewName || '').trim();
-  const nameError = validateProfileName(profileName);
-  if (nameError) {
-    return { ok: false, error: nameError };
+  const desktopId = payload.desktopId;
+  const rawName = (payload.name || payload.profileName || "").trim();
+  const avatar = payload.avatar;
+
+  if (rawName) {
+    const nameError = validateProfileName(rawName);
+    if (nameError) return { ok: false, error: nameError };
   }
 
-  const inUse = listDeletableSessions().some(
-    (session) => session.desktopId !== desktopId && session.profileName === profileName
+  const list = getStoredSessions();
+  let item = list.find(
+    (s) =>
+      s.desktopId === desktopId ||
+      (s.slug && `tuxchat-${s.slug}` === desktopId),
   );
-  if (inUse) {
-    return { ok: false, error: t('sessions.errors.inUse', profileName) };
+
+  if (!item && desktopId === "tuxchat") {
+    item = {
+      desktopId: "tuxchat",
+      slug: "",
+      profileName: rawName || t("sessions.mainLabel"),
+      avatar: null,
+    };
+    list.push(item);
   }
 
-  const launcherPath = path.join(LAUNCHERS_DIR, `${desktopId}-launcher.sh`);
-  const desktopPath = path.join(APPLICATIONS_DIR, `${desktopId}.desktop`);
-  const iconPath = path.join(ICONS_DIR, `${desktopId}.png`);
-  const userDataDir = path.join(HOME, '.config', desktopId);
-
-  if (!fs.existsSync(desktopPath)) {
-    return { ok: false, error: t('sessions.errors.notFound') };
+  if (!item) {
+    return { ok: false, error: "Sessão não encontrada." };
   }
 
-  try {
-    fs.writeFileSync(launcherPath, buildLauncherScript({ profileName, userDataDir, desktopId }));
-    fs.chmodSync(launcherPath, 0o755);
-    // Keeps whatever Icon= is there now, so a rename doesn't drop a
-    // session-colored icon back to the default one.
-    const icon = readDesktopIcon(desktopPath) || (fs.existsSync(iconPath) ? desktopId : null);
-    fs.writeFileSync(desktopPath, buildDesktopEntry({ profileName, launcherPath, desktopId, icon }));
-  } catch (err) {
-    return { ok: false, error: t('sessions.errors.renameFailed', err.message) };
+  if (rawName) item.profileName = rawName;
+  if (avatar !== undefined) item.avatar = avatar;
+  if (payload.color !== undefined) item.color = payload.color;
+
+  saveStoredSessions(list);
+
+  if (getActiveSessionId() === desktopId) {
+    let name = item.profileName || "";
+    const m = /^TuxChat\s*\((.+)\)$/i.exec(name);
+    if (m) name = m[1].charAt(0).toUpperCase() + m[1].slice(1);
+    const appName = name ? `TuxChat - ${name}` : "TuxChat";
+    titlebar.setTitle(appName);
+    if (selfContext && selfContext.mainWindow) {
+      updateTrayName(selfContext.tray, selfContext.mainWindow, appName);
+    }
   }
 
-  refreshDesktopCaches();
-
-  return { ok: true, profileName, desktopId };
+  notifySessionsChanged();
+  return {
+    ok: true,
+    desktopId,
+    profileName: item.profileName,
+    avatar: item.avatar,
+  };
 }
 
-// Populated once, right after the main window/tray exist, so the IPC
-// handler below (registered at module load, before either exists yet)
-// knows which session it's running as and can update the *live* window
-// title and tray label after a rename — the .desktop/launcher rewrite
-// above only affects the *next* launch.
+function deleteSession(desktopId) {
+  if (!desktopId || desktopId === "tuxchat") {
+    return { ok: false, error: "A sessão principal não pode ser excluída." };
+  }
+
+  let list = getStoredSessions();
+  list = list.filter(
+    (s) => s.desktopId !== desktopId && `tuxchat-${s.slug}` !== desktopId,
+  );
+  saveStoredSessions(list);
+
+  // Close the active view in the main window
+  removeSessionTab(desktopId);
+
+  if (process.platform === "linux") {
+    const launcherPath = path.join(LAUNCHERS_DIR, `${desktopId}-launcher.sh`);
+    const desktopPath = path.join(APPLICATIONS_DIR, `${desktopId}.desktop`);
+    const iconPath = path.join(ICONS_DIR, `${desktopId}.png`);
+    const userDataDir = path.join(HOME, ".config", desktopId);
+
+    try {
+      fs.rmSync(launcherPath, { force: true });
+      fs.rmSync(desktopPath, { force: true });
+      fs.rmSync(iconPath, { force: true });
+      removeTintedIcons(desktopId);
+      refreshDesktopCaches();
+      fs.rmSync(userDataDir, { recursive: true, force: true });
+    } catch (err) {
+      console.error("Error removing Linux session files:", err);
+    }
+  } else {
+    const userDataDir = path.join(HOME, ".config", desktopId);
+    try {
+      fs.rmSync(userDataDir, { recursive: true, force: true });
+    } catch {
+      // Directory may not exist or be in use
+    }
+  }
+
+  notifySessionsChanged();
+  return { ok: true };
+}
+
+function renameSession(desktopId, rawNewName) {
+  return updateSession({ desktopId, name: rawNewName });
+}
+
+function reorderSessions(orderedIds) {
+  if (!Array.isArray(orderedIds)) {
+    return { ok: false, error: "Invalid orderedIds array" };
+  }
+
+  const stored = getStoredSessions();
+
+  if (
+    orderedIds.includes("tuxchat") &&
+    !stored.some((s) => s.desktopId === "tuxchat")
+  ) {
+    stored.push({
+      desktopId: "tuxchat",
+      slug: "",
+      profileName: t("sessions.mainLabel"),
+      avatar: null,
+      color: null,
+    });
+  }
+
+  const deletable = listDeletableSessions();
+  for (const id of orderedIds) {
+    if (
+      !stored.some(
+        (s) => s.desktopId === id || (s.slug && `tuxchat-${s.slug}` === id),
+      )
+    ) {
+      const match = deletable.find((d) => d.desktopId === id);
+      if (match) {
+        stored.push(match);
+      }
+    }
+  }
+
+  stored.sort((a, b) => {
+    const idA = a.desktopId || (a.slug ? `tuxchat-${a.slug}` : "tuxchat");
+    const idB = b.desktopId || (b.slug ? `tuxchat-${b.slug}` : "tuxchat");
+    const indexA = orderedIds.indexOf(idA);
+    const indexB = orderedIds.indexOf(idB);
+    if (indexA === -1 && indexB === -1) return 0;
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
+
+  saveStoredSessions(stored);
+  notifySessionsChanged();
+  return { ok: true };
+}
+
 let selfContext = null;
 
-// desktopId comes from the session's own --class, fixed at creation: the
-// display name can change on every rename, so re-deriving it from
-// slugify(profileName) pointed at a .desktop that no longer matched
-// after the first rename ("that session doesn't exist anymore"). The
-// slugify fallback only covers hand-written launchers without --class.
 function registerSelfContext(mainWindow, tray, profileName, wmClass) {
-  const desktopId = wmClass || (profileName ? `tuxchat-${slugify(profileName)}` : null);
+  const desktopId =
+    wmClass || (profileName ? `tuxchat-${slugify(profileName)}` : "tuxchat");
   selfContext = { mainWindow, tray, profileName, desktopId };
 }
 
 function canRenameSelf() {
-  return Boolean(selfContext && selfContext.profileName);
+  return true;
 }
 
-ipcMain.handle('sessions:status', () => sessionStatus());
-ipcMain.handle('sessions:create', (_event, name) => createSession(name));
-ipcMain.handle('sessions:list-deletable', () => listDeletableSessions());
-ipcMain.handle('sessions:delete', (_event, desktopId) => deleteSession(desktopId));
-ipcMain.handle('sessions:current', () => ({
-  profileName: selfContext ? selfContext.profileName : '',
-  canRename: canRenameSelf(),
-}));
-ipcMain.handle('sessions:rename', (_event, newName) => {
-  if (!canRenameSelf()) {
-    return { ok: false, error: t('sessions.errors.mainCantRename') };
+function getSessionColor(desktopId) {
+  const targetId = desktopId || getActiveSessionId() || "tuxchat";
+  const all = listAllSessions();
+  const s = all.find((item) => item.desktopId === targetId);
+  return s && s.color ? s.color : null;
+}
+
+function setSessionColor(desktopId, color) {
+  const targetId = desktopId || getActiveSessionId() || "tuxchat";
+  const list = getStoredSessions();
+  let item = list.find(
+    (s) =>
+      s.desktopId === targetId || (s.slug && `tuxchat-${s.slug}` === targetId),
+  );
+
+  if (!item && targetId === "tuxchat") {
+    item = {
+      desktopId: "tuxchat",
+      slug: "",
+      profileName: t("sessions.mainLabel"),
+      avatar: null,
+      color: null,
+    };
+    list.push(item);
   }
 
-  const result = renameSession(selfContext.desktopId, newName);
-  if (result.ok) {
-    selfContext.profileName = result.profileName;
-    const appName = `TuxChat - ${result.profileName}`;
-    titlebar.setTitle(appName);
-    updateTrayName(selfContext.tray, selfContext.mainWindow, appName);
+  if (!item) return false;
+  item.color = color || null;
+  saveStoredSessions(list);
+
+  if (getActiveSessionId() === targetId) {
+    titlebar.setColor(item.color);
   }
-  return result;
-});
+
+  notifySessionsChanged();
+  return true;
+}
+
+function getSessionMuted(desktopId) {
+  const targetId = desktopId || getActiveSessionId() || "tuxchat";
+  const all = listAllSessions();
+  const s = all.find((item) => item.desktopId === targetId);
+  return s ? Boolean(s.muted) : false;
+}
+
+function setSessionMuted(desktopId, muted) {
+  const targetId = desktopId || getActiveSessionId() || "tuxchat";
+  const list = getStoredSessions();
+  let item = list.find(
+    (s) =>
+      s.desktopId === targetId || (s.slug && `tuxchat-${s.slug}` === targetId),
+  );
+
+  if (!item && targetId === "tuxchat") {
+    item = {
+      desktopId: "tuxchat",
+      slug: "",
+      profileName: t("sessions.mainLabel"),
+      avatar: null,
+      color: null,
+      muted: false,
+      volume: 100,
+    };
+    list.push(item);
+  }
+
+  if (!item) return false;
+  item.muted = Boolean(muted);
+  saveStoredSessions(list);
+
+  try {
+    const { setAudioMutedForSession } = require("../mainWindow");
+    if (typeof setAudioMutedForSession === "function") {
+      setAudioMutedForSession(targetId, item.muted);
+    }
+  } catch {
+    // mainWindow may not be loaded yet
+  }
+
+  notifySessionsChanged();
+  return true;
+}
+
+function getSessionVolume(desktopId) {
+  const targetId = desktopId || getActiveSessionId() || "tuxchat";
+  const all = listAllSessions();
+  const s = all.find((item) => item.desktopId === targetId);
+  return s && typeof s.volume === "number" ? s.volume : 100;
+}
+
+function setSessionVolume(desktopId, volume) {
+  const targetId = desktopId || getActiveSessionId() || "tuxchat";
+  const vol = Math.max(0, Math.min(100, Math.round(Number(volume) || 0)));
+  const list = getStoredSessions();
+  let item = list.find(
+    (s) =>
+      s.desktopId === targetId || (s.slug && `tuxchat-${s.slug}` === targetId),
+  );
+
+  if (!item && targetId === "tuxchat") {
+    item = {
+      desktopId: "tuxchat",
+      slug: "",
+      profileName: t("sessions.mainLabel"),
+      avatar: null,
+      color: null,
+      muted: false,
+      volume: 100,
+    };
+    list.push(item);
+  }
+
+  if (!item) return false;
+  item.volume = vol;
+  saveStoredSessions(list);
+
+  try {
+    const { setVolumeForSession } = require("../mainWindow");
+    if (typeof setVolumeForSession === "function") {
+      setVolumeForSession(targetId, vol);
+    }
+  } catch {
+    // mainWindow may not be loaded yet
+  }
+
+  notifySessionsChanged();
+  return true;
+}
+
+function setSessionHideInLinkPicker(desktopId, hide) {
+  const targetId = desktopId || "tuxchat";
+  const list = getStoredSessions();
+  let item = list.find(
+    (s) =>
+      s.desktopId === targetId || (s.slug && `tuxchat-${s.slug}` === targetId),
+  );
+
+  if (!item && targetId === "tuxchat") {
+    item = {
+      desktopId: "tuxchat",
+      slug: "",
+      profileName: t("sessions.mainLabel"),
+      avatar: null,
+      color: null,
+      muted: false,
+      volume: 100,
+      hideInLinkPicker: false,
+    };
+    list.push(item);
+  }
+
+  if (!item) return false;
+  item.hideInLinkPicker = Boolean(hide);
+  saveStoredSessions(list);
+  notifySessionsChanged();
+  return true;
+}
+
+function recordSessionLinkUsage(desktopId) {
+  const targetId = desktopId || "tuxchat";
+  const list = getStoredSessions();
+  let item = list.find(
+    (s) =>
+      s.desktopId === targetId || (s.slug && `tuxchat-${s.slug}` === targetId),
+  );
+
+  if (!item && targetId === "tuxchat") {
+    item = {
+      desktopId: "tuxchat",
+      slug: "",
+      profileName: t("sessions.mainLabel"),
+      avatar: null,
+      color: null,
+      muted: false,
+      volume: 100,
+      hideInLinkPicker: false,
+      lastLinkAt: Date.now(),
+    };
+    list.push(item);
+  } else if (item) {
+    item.lastLinkAt = Date.now();
+  }
+
+  saveStoredSessions(list);
+  notifySessionsChanged();
+  return true;
+}
+
+function switchSession(desktopId) {
+  const res = switchSessionTab(desktopId);
+  const color = getSessionColor(desktopId);
+  titlebar.setColor(color);
+  return res;
+}
+
+function setSessionIcon(desktopId, colorKey, pngBuffer) {
+  if (!/^tuxchat-(.+)$/.test(desktopId || "")) return;
+  const desktopPath = path.join(APPLICATIONS_DIR, `${desktopId}.desktop`);
+  if (!fs.existsSync(desktopPath)) return;
+
+  removeTintedIcons(desktopId);
+  let icon = fs.existsSync(path.join(ICONS_DIR, `${desktopId}.png`))
+    ? desktopId
+    : null;
+  if (pngBuffer) {
+    fs.mkdirSync(TINTED_ICONS_DIR, { recursive: true });
+    icon = path.join(TINTED_ICONS_DIR, `${desktopId}-${colorKey}.png`);
+    fs.writeFileSync(icon, pngBuffer);
+  }
+
+  const lines = fs
+    .readFileSync(desktopPath, "utf8")
+    .split("\n")
+    .filter((line) => !line.startsWith("Icon="));
+  if (icon)
+    lines.splice(
+      lines.findIndex((line) => line.startsWith("Exec=")) + 1,
+      0,
+      `Icon=${icon}`,
+    );
+  fs.writeFileSync(desktopPath, lines.join("\n"));
+  refreshDesktopCaches();
+}
 
 function openAddSessionDialog() {
-  const win = new BrowserWindow({
-    width: 400,
-    height: 300,
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'dialog-preload.js'),
-      contextIsolation: true,
-      sandbox: true,
-    },
-  });
-  win.setMenuBarVisibility(false);
-  win.loadFile(path.join(__dirname, 'dialog.html'), { query: { locale: currentLocale() } });
-  return win;
+  const win =
+    (selfContext && selfContext.mainWindow) ||
+    BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+  openSessionModal(win, { mode: "create" });
 }
 
 function openDeleteSessionDialog() {
-  const win = new BrowserWindow({
-    width: 460,
-    height: 440,
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'delete-dialog-preload.js'),
-      contextIsolation: true,
-      sandbox: true,
-    },
-  });
-  win.setMenuBarVisibility(false);
-  win.loadFile(path.join(__dirname, 'delete-dialog.html'), { query: { locale: currentLocale() } });
-  return win;
+  const win =
+    (selfContext && selfContext.mainWindow) ||
+    BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+  const activeId = getActiveSessionId();
+  openDeleteModal(win, activeId);
 }
 
 function openRenameSessionDialog() {
-  const win = new BrowserWindow({
-    width: 400,
-    height: 280,
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'rename-dialog-preload.js'),
-      contextIsolation: true,
-      sandbox: true,
-    },
-  });
-  win.setMenuBarVisibility(false);
-  win.loadFile(path.join(__dirname, 'rename-dialog.html'), { query: { locale: currentLocale() } });
-  return win;
+  const win =
+    (selfContext && selfContext.mainWindow) ||
+    BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+  const activeId = getActiveSessionId();
+  openSessionModal(win, { mode: "edit", desktopId: activeId });
 }
 
-// The main profile (desktopId 'tuxchat', slug '') isn't listed by
-// listDeletableSessions() on purpose (see its own comment above) but deep
-// links still need to offer it as a target — it's a real, always-present
-// session, just not one manageable from the delete dialog.
-function listAllSessions() {
-  return [{ desktopId: 'tuxchat', profileName: t('sessions.mainLabel') }, ...listDeletableSessions()];
-}
+// IPC Handlers
+ipcMain.handle("sessions:status", () => sessionStatus());
+ipcMain.handle("sessions:list-all", () => listAllSessions());
+ipcMain.handle("sessions:list-deletable", () => listDeletableSessions());
+ipcMain.handle("sessions:reorder", (_event, orderedIds) =>
+  reorderSessions(orderedIds),
+);
+ipcMain.handle("sessions:current", () => {
+  const activeId = getActiveSessionId();
+  const all = listAllSessions();
+  const current = all.find((s) => s.desktopId === activeId) || all[0];
+  return {
+    desktopId: activeId,
+    profileName: current ? current.profileName : "",
+    avatar: current ? current.avatar : null,
+    color: current ? current.color : null,
+    muted: current ? current.muted : false,
+    volume: current ? current.volume : 100,
+    hideInLinkPicker: current ? current.hideInLinkPicker : false,
+    canRename: true,
+  };
+});
+ipcMain.handle("sessions:set-muted", (_event, { desktopId, muted }) =>
+  setSessionMuted(desktopId, muted),
+);
+ipcMain.handle("sessions:set-volume", (_event, { desktopId, volume }) =>
+  setSessionVolume(desktopId, volume),
+);
+ipcMain.handle("sessions:toggle-hide-link", (_event, { desktopId, hide }) =>
+  setSessionHideInLinkPicker(desktopId, hide),
+);
+ipcMain.handle("sessions:switch", (_event, desktopId) =>
+  switchSession(desktopId),
+);
+ipcMain.handle("sessions:create", (_event, payload) => createSession(payload));
+ipcMain.handle("sessions:update", (_event, payload) => updateSession(payload));
+ipcMain.handle("sessions:delete", (_event, desktopId) =>
+  deleteSession(desktopId),
+);
+ipcMain.handle("sessions:open-add", () => {
+  openAddSessionDialog();
+  return { ok: true };
+});
+ipcMain.handle("sessions:open-edit", (_event, desktopId) => {
+  const win =
+    (selfContext && selfContext.mainWindow) ||
+    BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+  openSessionModal(win, { mode: "edit", desktopId });
+  return { ok: true };
+});
+ipcMain.handle("sessions:open-delete", (_event, desktopId) => {
+  const win =
+    (selfContext && selfContext.mainWindow) ||
+    BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+  openDeleteModal(win, desktopId);
+  return { ok: true };
+});
+ipcMain.on("sessions:modal-close", () => {
+  closeSessionModal();
+});
+ipcMain.on("sessions:modal-resize", (_event, height) => {
+  resizeSessionModal(height);
+});
+ipcMain.on("sessions:context-menu", (_event, desktopId) => {
+  const win =
+    (selfContext && selfContext.mainWindow) ||
+    BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+  if (!win) return;
+  const isMain = desktopId === "tuxchat";
+  const { openSessionColorDialog } = require("../sessionColor");
+  const isMuted = getSessionMuted(desktopId);
+  const currentVol = getSessionVolume(desktopId);
+
+  const template = [
+    {
+      label: t("menu.editSession"),
+      click: () => openSessionModal(win, { mode: "edit", desktopId }),
+    },
+    {
+      label: t("menu.sessionColor"),
+      click: () => openSessionColorDialog(desktopId),
+    },
+    { type: "separator" },
+    {
+      label: isMuted ? t("menu.unmuteAudio") : t("menu.muteAudio"),
+      type: "checkbox",
+      checked: isMuted,
+      click: () => setSessionMuted(desktopId, !isMuted),
+    },
+    {
+      label: `${t("menu.volume")} (${currentVol}%)`,
+      submenu: [
+        {
+          label: "100%",
+          type: "radio",
+          checked: currentVol === 100,
+          click: () => setSessionVolume(desktopId, 100),
+        },
+        {
+          label: "75%",
+          type: "radio",
+          checked: currentVol === 75,
+          click: () => setSessionVolume(desktopId, 75),
+        },
+        {
+          label: "50%",
+          type: "radio",
+          checked: currentVol === 50,
+          click: () => setSessionVolume(desktopId, 50),
+        },
+        {
+          label: "25%",
+          type: "radio",
+          checked: currentVol === 25,
+          click: () => setSessionVolume(desktopId, 25),
+        },
+        {
+          label: "10%",
+          type: "radio",
+          checked: currentVol === 10,
+          click: () => setSessionVolume(desktopId, 10),
+        },
+        {
+          label: `0% (${t("menu.silent")})`,
+          type: "radio",
+          checked: currentVol === 0,
+          click: () => setSessionVolume(desktopId, 0),
+        },
+      ],
+    },
+  ];
+  if (!isMain) {
+    template.push(
+      { type: "separator" },
+      {
+        label: t("menu.deleteSession"),
+        click: () => openDeleteModal(win, desktopId),
+      },
+    );
+  }
+  const menu = Menu.buildFromTemplate(template);
+  menu.popup({ window: win });
+});
+ipcMain.handle("sessions:rename", (_event, newName) => {
+  const activeId = getActiveSessionId();
+  return updateSession({ desktopId: activeId, name: newName });
+});
 
 module.exports = {
   openAddSessionDialog,
@@ -481,10 +939,22 @@ module.exports = {
   openRenameSessionDialog,
   sessionStatus,
   createSession,
+  updateSession,
   listDeletableSessions,
   listAllSessions,
+  switchSession,
+  notifySessionsChanged,
   deleteSession,
   renameSession,
+  reorderSessions,
+  getSessionColor,
+  setSessionColor,
+  getSessionMuted,
+  setSessionMuted,
+  getSessionVolume,
+  setSessionVolume,
+  setSessionHideInLinkPicker,
+  recordSessionLinkUsage,
   registerSelfContext,
   canRenameSelf,
   refreshDesktopCaches,

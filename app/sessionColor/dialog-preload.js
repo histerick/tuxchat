@@ -1,8 +1,9 @@
-'use strict';
+"use strict";
 
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer } = require("electron");
 
-contextBridge.exposeInMainWorld('sessionColorDialog', {
-  get: () => ipcRenderer.invoke('session-color:get'),
-  set: (color) => ipcRenderer.invoke('session-color:set', color),
+contextBridge.exposeInMainWorld("sessionColorDialog", {
+  get: (desktopId) => ipcRenderer.invoke("session-color:get", desktopId),
+  set: (payload) => ipcRenderer.invoke("session-color:set", payload),
+  close: () => ipcRenderer.send("session-color:close"),
 });

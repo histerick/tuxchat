@@ -1,15 +1,33 @@
-'use strict';
+"use strict";
 
-const { Menu, app, ipcMain } = require('electron');
-const { openAddSessionDialog, openDeleteSessionDialog, openRenameSessionDialog, canRenameSelf } = require('../sessions');
-const { openSettingsDialog } = require('../deepLinks');
-const { openSessionColorDialog } = require('../sessionColor');
-const { getWhatsAppContents } = require('../mainWindow');
-const { t } = require('../i18n');
+const { Menu, app, ipcMain } = require("electron");
+const {
+  openAddSessionDialog,
+  openDeleteSessionDialog,
+  openRenameSessionDialog,
+  canRenameSelf,
+} = require("../sessions");
+const { openSettingsDialog } = require("../deepLinks");
+const { openSessionColorDialog } = require("../sessionColor");
+const { openAboutModal } = require("../about");
+const { getWhatsAppContents } = require("../mainWindow");
+const { t, currentLocale, setLocale } = require("../i18n");
+const titlebar = require("../mainWindow/titlebar");
 
 function quit() {
   app.isQuitting = true;
   app.quit();
+}
+
+function changeLanguage(locale, win) {
+  if (currentLocale() === locale) return;
+  setLocale(locale);
+  titlebar.push();
+  const { notifySessionsChanged } = require("../sessions");
+  notifySessionsChanged();
+  if (win && !win.isDestroyed()) {
+    win.webContents.send("i18n:changed", locale);
+  }
 }
 
 // Explicit actions instead of Electron's menu roles: a role acts on the
@@ -22,28 +40,81 @@ function zoom(delta) {
 
 function buildTemplate(win) {
   return {
-    file: [{ label: t('menu.quit'), accelerator: 'CmdOrCtrl+Q', click: quit }],
+    file: [
+      {
+        label: t("menu.language"),
+        submenu: [
+          {
+            label: "English",
+            type: "radio",
+            checked: currentLocale() === "en",
+            click: () => changeLanguage("en", win),
+          },
+          {
+            label: "Español",
+            type: "radio",
+            checked: currentLocale() === "es",
+            click: () => changeLanguage("es", win),
+          },
+          {
+            label: "Português (Brasil)",
+            type: "radio",
+            checked: currentLocale() === "pt",
+            click: () => changeLanguage("pt", win),
+          },
+        ],
+      },
+      { type: "separator" },
+      { label: t("menu.quit"), accelerator: "CmdOrCtrl+Q", click: quit },
+    ],
     sessions: [
-      { label: t('menu.addSession'), click: () => openAddSessionDialog() },
-      { label: t('menu.renameSession'), enabled: canRenameSelf(), click: () => openRenameSessionDialog() },
-      { label: t('menu.deleteSession'), click: () => openDeleteSessionDialog() },
-      { label: t('menu.sessionColor'), click: () => openSessionColorDialog() },
-      { type: 'separator' },
-      { label: t('menu.whatsappLinks'), click: () => openSettingsDialog() },
+      { label: t("menu.addSession"), click: () => openAddSessionDialog() },
+      {
+        label: t("menu.renameSession"),
+        enabled: canRenameSelf(),
+        click: () => openRenameSessionDialog(),
+      },
+      {
+        label: t("menu.deleteSession"),
+        click: () => openDeleteSessionDialog(),
+      },
+      { label: t("menu.sessionColor"), click: () => openSessionColorDialog() },
+      { type: "separator" },
+      { label: t("menu.whatsappLinks"), click: () => openSettingsDialog() },
     ],
     view: [
-      { label: t('menu.reload'), accelerator: 'CmdOrCtrl+R', click: () => getWhatsAppContents().reload() },
       {
-        label: t('menu.toggleDevTools'),
-        accelerator: 'CmdOrCtrl+Shift+I',
+        label: t("menu.reload"),
+        accelerator: "CmdOrCtrl+R",
+        click: () => getWhatsAppContents().reload(),
+      },
+      {
+        label: t("menu.toggleDevTools"),
+        accelerator: "CmdOrCtrl+Shift+I",
         click: () => getWhatsAppContents().toggleDevTools(),
       },
-      { type: 'separator' },
-      { label: t('menu.resetZoom'), accelerator: 'CmdOrCtrl+0', click: () => zoom(0) },
-      { label: t('menu.zoomIn'), accelerator: 'CmdOrCtrl+Plus', click: () => zoom(0.5) },
-      { label: t('menu.zoomOut'), accelerator: 'CmdOrCtrl+-', click: () => zoom(-0.5) },
-      { type: 'separator' },
-      { label: t('menu.fullscreen'), accelerator: 'F11', click: () => win.setFullScreen(!win.isFullScreen()) },
+      { type: "separator" },
+      {
+        label: t("menu.resetZoom"),
+        accelerator: "CmdOrCtrl+0",
+        click: () => zoom(0),
+      },
+      {
+        label: t("menu.zoomIn"),
+        accelerator: "CmdOrCtrl+Plus",
+        click: () => zoom(0.5),
+      },
+      {
+        label: t("menu.zoomOut"),
+        accelerator: "CmdOrCtrl+-",
+        click: () => zoom(-0.5),
+      },
+      { type: "separator" },
+      {
+        label: t("menu.fullscreen"),
+        accelerator: "F11",
+        click: () => win.setFullScreen(!win.isFullScreen()),
+      },
     ],
   };
 }
@@ -54,15 +125,15 @@ function buildTemplate(win) {
 function shortcutFor(input) {
   const ctrl = input.control || input.meta;
   const key = input.key.toLowerCase();
-  if (input.key === 'F11') return 'fullscreen';
-  if (input.key === 'F5') return 'reload';
+  if (input.key === "F11") return "fullscreen";
+  if (input.key === "F5") return "reload";
   if (!ctrl || input.alt) return null;
-  if (key === 'q' && !input.shift) return 'quit';
-  if (key === 'r' && !input.shift) return 'reload';
-  if (key === 'i' && input.shift) return 'devtools';
-  if (key === '0') return 'resetZoom';
-  if (key === '=' || key === '+') return 'zoomIn';
-  if (key === '-') return 'zoomOut';
+  if (key === "q" && !input.shift) return "quit";
+  if (key === "r" && !input.shift) return "reload";
+  if (key === "i" && input.shift) return "devtools";
+  if (key === "0") return "resetZoom";
+  if (key === "=" || key === "+") return "zoomIn";
+  if (key === "-") return "zoomOut";
   return null;
 }
 
@@ -76,8 +147,8 @@ function handleShortcuts(win, contents) {
     zoomOut: () => zoom(-0.5),
     fullscreen: () => win.setFullScreen(!win.isFullScreen()),
   };
-  contents.on('before-input-event', (event, input) => {
-    if (input.type !== 'keyDown') return;
+  contents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown") return;
     const action = shortcutFor(input);
     if (!action) return;
     event.preventDefault();
@@ -95,12 +166,18 @@ function buildMenu(win) {
 
   // Rebuilt on every click so items like "Rename session..." reflect the
   // current state (it's disabled for the main session).
-  ipcMain.on('titlebar:menu', (_event, id, x, y) => {
+  ipcMain.on("titlebar:menu", (_event, id, x, y) => {
+    if (id === "about") {
+      openAboutModal(win);
+      return;
+    }
     const items = buildTemplate(win)[id];
     if (!items) return;
     // registerAccelerator: false — shown as a hint only; handleShortcuts
     // above is what actually runs them.
-    const menu = Menu.buildFromTemplate(items.map((item) => ({ ...item, registerAccelerator: false })));
+    const menu = Menu.buildFromTemplate(
+      items.map((item) => ({ ...item, registerAccelerator: false })),
+    );
     menu.popup({ window: win, x, y });
   });
 }

@@ -1,13 +1,35 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
     <title></title>
     <style>
       :root {
-        --bg: #303030;
+        --bg: #202c33;
         --fg: #ffffff;
+        --sidebar-w: 68px;
+        --sidebar-bg: #1d1f1f;
+        --sidebar-border: #222e35;
+        --item-bg: #202c33;
+        --item-hover-bg: #2a3942;
+        --whatsapp-green: #00a884;
+        --whatsapp-green-hover: #06cf9c;
+        --danger-red: #f15c6d;
+        --danger-red-hover: #ff6b7d;
+        --text-primary: #e9edef;
+        --text-secondary: #8696a0;
       }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
       html,
       body {
         margin: 0;
@@ -15,9 +37,18 @@
         overflow: hidden;
         background: var(--bg);
         color: var(--fg);
-        font: 13px system-ui, sans-serif;
+        font:
+          13px system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
         user-select: none;
       }
+
       .bar {
         position: relative;
         display: flex;
@@ -25,6 +56,11 @@
         height: 38px;
         -webkit-app-region: drag;
       }
+
+      body.fullscreen .bar {
+        display: none;
+      }
+
       .menus {
         display: flex;
         gap: 2px;
@@ -33,6 +69,7 @@
         position: relative;
         z-index: 1;
       }
+
       .menus button {
         background: none;
         border: none;
@@ -42,15 +79,16 @@
         padding: 5px 9px;
         cursor: default;
       }
+
       .menus button:hover {
         background: color-mix(in srgb, currentColor 14%, transparent);
       }
+
       .menus button:focus-visible {
         outline: 2px solid color-mix(in srgb, currentColor 50%, transparent);
         outline-offset: -2px;
       }
-      /* Centered on the whole window like GNOME's own titles; the side
-         padding keeps it clear of the menus and the window buttons. */
+
       .title {
         position: absolute;
         inset: 0;
@@ -64,17 +102,312 @@
         text-overflow: ellipsis;
         pointer-events: none;
       }
+
+      /* ============================================================
+         DISCORD-STYLE MULTI-SESSION SIDEBAR
+         ============================================================ */
+      .sessions-sidebar {
+        position: fixed;
+        top: 38px;
+        right: 0;
+        bottom: 0;
+        width: var(--sidebar-w);
+        background: var(--sidebar-bg);
+        border-left: 1px solid var(--sidebar-border);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 12px 0;
+        gap: 8px;
+        z-index: 20;
+        -webkit-app-region: no-drag;
+        overflow-y: auto;
+        overflow-x: visible;
+      }
+
+      body.fullscreen .sessions-sidebar {
+        top: 0;
+      }
+
+      .sessions-sidebar::-webkit-scrollbar {
+        width: 0;
+        display: none;
+      }
+
+      .session-wrapper {
+        position: relative;
+        width: 100%;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          transform 0.15s ease,
+          opacity 0.15s ease;
+      }
+
+      .session-wrapper[draggable="true"] {
+        cursor: grab;
+      }
+
+      .session-wrapper[draggable="true"]:active {
+        cursor: grabbing;
+      }
+
+      .session-wrapper.dragging {
+        opacity: 0.35;
+        transform: scale(0.92);
+        cursor: grabbing;
+      }
+
+      body.is-dragging .session-wrapper > * {
+        pointer-events: none;
+      }
+
+      body.is-dragging .session-tooltip {
+        display: none !important;
+      }
+
+      /* Drop indicator lines: modern WhatsApp green glow line */
+      .session-wrapper.drag-over-top::before {
+        content: "";
+        position: absolute;
+        top: -4px;
+        left: 12px;
+        right: 12px;
+        height: 3px;
+        background: var(--whatsapp-green);
+        border-radius: 3px;
+        box-shadow: 0 0 8px var(--whatsapp-green);
+        z-index: 30;
+      }
+
+      .session-wrapper.drag-over-bottom::after {
+        content: "";
+        position: absolute;
+        bottom: -4px;
+        left: 12px;
+        right: 12px;
+        height: 3px;
+        background: var(--whatsapp-green);
+        border-radius: 3px;
+        box-shadow: 0 0 8px var(--whatsapp-green);
+        z-index: 30;
+      }
+
+      /* Discord-style Pill Indicator on right edge */
+      .session-pill {
+        position: absolute;
+        right: 0;
+        width: 4px;
+        height: 0;
+        border-radius: 4px 0 0 4px;
+        background: var(--text-primary);
+        opacity: 0;
+        transition:
+          height 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+          opacity 0.2s ease,
+          background-color 0.2s ease;
+      }
+
+      .session-wrapper:hover .session-pill {
+        height: 20px;
+        opacity: 1;
+      }
+
+      .session-wrapper.active .session-pill {
+        height: 38px;
+        opacity: 1;
+        background: var(--whatsapp-green);
+      }
+
+      /* Muted speaker badge */
+      .session-muted-badge {
+        position: absolute;
+        bottom: 1px;
+        right: 8px;
+        width: 17px;
+        height: 17px;
+        border-radius: 50%;
+        background: #111b21;
+        border: 1.5px solid var(--sidebar-bg);
+        color: var(--danger-red);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        pointer-events: none;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Discord-style Morphing Icon Button (Circle -> Squircle) */
+      .session-btn {
+        position: relative;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: var(--item-bg);
+        color: var(--text-primary);
+        border: none;
+        outline: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 0;
+        overflow: hidden;
+        transition:
+          border-radius 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+          background-color 0.22s ease,
+          color 0.22s ease,
+          transform 0.15s ease,
+          box-shadow 0.22s ease;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+      }
+
+      .session-btn svg {
+        width: 24px;
+        height: 24px;
+        transition: transform 0.2s ease;
+        pointer-events: none;
+      }
+
+      .session-avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: inherit;
+        pointer-events: none;
+      }
+
+      .session-wrapper:hover .session-btn {
+        border-radius: 14px;
+        background: var(--item-hover-bg);
+        color: #ffffff;
+        transform: scale(1.04);
+      }
+
+      .session-wrapper.active .session-btn {
+        border-radius: 14px;
+        background: var(--whatsapp-green);
+        color: #1d1f1f;
+        font-weight: 700;
+        box-shadow: 0 4px 14px rgba(0, 168, 132, 0.4);
+        transform: scale(1.02);
+      }
+
+      .session-wrapper.active:hover .session-btn {
+        background: var(--whatsapp-green-hover);
+        color: #1d1f1f;
+      }
+
+      /* Divider between sessions and add button */
+      .sessions-divider {
+        width: 32px;
+        height: 2px;
+        background: var(--sidebar-border);
+        border-radius: 1px;
+        margin: 4px 0;
+        flex-shrink: 0;
+      }
+
+      /* Discord-style Add Session (+) Button */
+      .add-session-btn {
+        position: relative;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: var(--item-bg);
+        color: var(--whatsapp-green);
+        border: 2px dashed
+          color-mix(in srgb, var(--whatsapp-green) 60%, transparent);
+        outline: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition:
+          border-radius 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+          background-color 0.22s ease,
+          border-color 0.22s ease,
+          color 0.22s ease,
+          transform 0.2s ease;
+      }
+
+      .add-session-btn svg {
+        width: 20px;
+        height: 20px;
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .session-wrapper:hover .add-session-btn {
+        border-radius: 14px;
+        background: var(--whatsapp-green);
+        border-style: solid;
+        border-color: var(--whatsapp-green);
+        color: #ffffff;
+        transform: scale(1.04);
+      }
+
+      .session-wrapper:hover .add-session-btn svg {
+        transform: rotate(90deg);
+      }
+
+      /* Discord-style Tooltip (Floats to the left of the icon) */
+      .session-tooltip {
+        position: absolute;
+        right: calc(100% + 12px);
+        top: 50%;
+        transform: translateY(-50%) translateX(6px);
+        background: #1d1f1f;
+        color: var(--text-primary);
+        border: 1px solid #2a3942;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+        transition:
+          opacity 0.15s ease,
+          transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+          visibility 0.15s;
+        z-index: 100;
+      }
+
+      .session-tooltip::after {
+        content: "";
+        position: absolute;
+        left: 100%;
+        top: 50%;
+        transform: translateY(-50%);
+        border-width: 5px;
+        border-style: solid;
+        border-color: transparent transparent transparent #1d1f1f;
+      }
+
+      .session-wrapper:hover .session-tooltip {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(-50%) translateX(0);
+      }
     </style>
   </head>
+
   <body>
     <div class="bar">
-      <!-- Order matters: app-region is inherited, so the full-width title
-           is itself a drag region. Electron applies regions in document
-           order, so the menus' no-drag must come after it or the title
-           swallows their clicks (they'd drag the window instead). -->
       <div class="title" id="title"></div>
       <nav class="menus" id="menus"></nav>
     </div>
+
+    <!-- Multi-session sidebar (Discord style) -->
+    <aside class="sessions-sidebar" id="sessions-sidebar"></aside>
+
     <script src="titlebar-renderer.js"></script>
   </body>
 </html>

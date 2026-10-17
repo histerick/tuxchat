@@ -1,11 +1,11 @@
-'use strict';
+"use strict";
 
-const { app } = require('electron');
-const fs = require('node:fs');
-const path = require('node:path');
-const { execFile } = require('node:child_process');
-const { refreshDesktopCaches } = require('../sessions');
-const { t } = require('../i18n');
+const { app } = require("electron");
+const fs = require("node:fs");
+const path = require("node:path");
+const { execFile } = require("node:child_process");
+const { refreshDesktopCaches } = require("../sessions");
+const { t } = require("../i18n");
 
 // Distinct from every session's own tuxchat[-<slug>].desktop: this one
 // isn't a WhatsApp window at all, just the thing the system hands
@@ -19,7 +19,7 @@ const { t } = require('../i18n');
 // confirmed live on 2026-09-21. Keeping the router out of the
 // tuxchat-<slug> namespace entirely avoids relying on both files staying
 // in sync by convention.
-const ROUTER_DESKTOP_ID = 'tuxchat_router';
+const ROUTER_DESKTOP_ID = "tuxchat_router";
 
 function routerExecLine() {
   // Same reasoning as buildLauncherScript() in sessions/index.js: under an
@@ -31,26 +31,101 @@ function routerExecLine() {
   // buildLauncherScript() in sessions/index.js. A packaged build's own
   // executable already knows its app.
   if (!app.isPackaged) parts.push(app.getAppPath());
-  parts.push('--tuxchat-deep-link-router', '%u');
-  return parts.join(' ');
+  parts.push("--tuxchat-deep-link-router", "%u");
+  return parts.join(" ");
 }
 
 function buildRouterDesktopEntry() {
   return (
     [
-      '[Desktop Entry]',
-      'Version=1.0',
-      'Terminal=false',
-      'Type=Application',
-      `Name=${t('router.desktopName')}`,
-      `Comment=${t('router.desktopComment')}`,
+      "[Desktop Entry]",
+      "Version=1.0",
+      "Terminal=false",
+      "Type=Application",
+      `Name=${t("router.desktopName")}`,
+      `Comment=${t("router.desktopComment")}`,
       `Exec=${routerExecLine()}`,
-      'Icon=tuxchat',
-      'NoDisplay=true',
-      'MimeType=x-scheme-handler/whatsapp;',
-      'Categories=Network;InstantMessaging;',
-    ].join('\n') + '\n'
+      "Icon=tuxchat",
+      "NoDisplay=true",
+      "MimeType=x-scheme-handler/whatsapp;",
+      "Categories=Network;InstantMessaging;",
+    ].join("\n") + "\n"
   );
+}
+
+function ensureRouterRegisteredWin32() {
+  try {
+    const execPath = process.execPath;
+    const appPath = app.getAppPath();
+    const iconPath = path.join(appPath, "build", "icon.png");
+    const commandStr = !app.isPackaged
+      ? `"${execPath}" "${appPath}" "%1"`
+      : `"${execPath}" "%1"`;
+
+    const regAdd = (key, valueName, data, type = "REG_SZ") => {
+      const args = ["add", key, "/f"];
+      if (!valueName) {
+        args.push("/ve");
+      } else {
+        args.push("/v", valueName);
+      }
+      if (type) args.push("/t", type);
+      args.push("/d", data);
+      execFile("reg.exe", args, () => {});
+    };
+
+    regAdd("HKCU\\Software\\Classes\\whatsapp", "", "URL:whatsapp");
+    regAdd("HKCU\\Software\\Classes\\whatsapp", "URL Protocol", "");
+    regAdd(
+      "HKCU\\Software\\Classes\\whatsapp\\shell\\open\\command",
+      "",
+      commandStr,
+    );
+
+    regAdd("HKCU\\Software\\Classes\\TuxChat.whatsapp", "", "URL:whatsapp");
+    regAdd("HKCU\\Software\\Classes\\TuxChat.whatsapp", "URL Protocol", "");
+    if (fs.existsSync(iconPath)) {
+      regAdd(
+        "HKCU\\Software\\Classes\\TuxChat.whatsapp\\DefaultIcon",
+        "",
+        `${iconPath},0`,
+      );
+    }
+    regAdd(
+      "HKCU\\Software\\Classes\\TuxChat.whatsapp\\shell\\open\\command",
+      "",
+      commandStr,
+    );
+
+    regAdd(
+      "HKCU\\Software\\TuxChat\\Capabilities",
+      "ApplicationName",
+      "TuxChat",
+    );
+    regAdd(
+      "HKCU\\Software\\TuxChat\\Capabilities",
+      "ApplicationDescription",
+      "TuxChat - WhatsApp Web Client",
+    );
+    regAdd(
+      "HKCU\\Software\\TuxChat\\Capabilities\\URLAssociations",
+      "whatsapp",
+      "TuxChat.whatsapp",
+    );
+    regAdd(
+      "HKCU\\Software\\RegisteredApplications",
+      "TuxChat",
+      "Software\\TuxChat\\Capabilities",
+    );
+
+    if (!app.isPackaged) {
+      app.setAsDefaultProtocolClient("whatsapp", execPath, [appPath]);
+    } else {
+      app.setAsDefaultProtocolClient("whatsapp");
+    }
+  } catch (err) {
+    console.error("Fallo al registrar protocolo whatsapp en Windows:", err);
+  }
 }
 
 // Idempotent and cheap enough to call on every normal startup: keeps the
@@ -59,8 +134,21 @@ function buildRouterDesktopEntry() {
 // step. Best-effort only — a failure here means deep links silently don't
 // work yet, not that the app fails to start.
 function ensureRouterRegistered() {
-  const applicationsDir = path.join(app.getPath('home'), '.local', 'share', 'applications');
-  const desktopPath = path.join(applicationsDir, `${ROUTER_DESKTOP_ID}.desktop`);
+  if (process.platform === "win32") {
+    ensureRouterRegisteredWin32();
+    return;
+  }
+
+  const applicationsDir = path.join(
+    app.getPath("home"),
+    ".local",
+    "share",
+    "applications",
+  );
+  const desktopPath = path.join(
+    applicationsDir,
+    `${ROUTER_DESKTOP_ID}.desktop`,
+  );
 
   try {
     fs.mkdirSync(applicationsDir, { recursive: true });
@@ -70,7 +158,11 @@ function ensureRouterRegistered() {
   }
 
   refreshDesktopCaches();
-  execFile('xdg-mime', ['default', `${ROUTER_DESKTOP_ID}.desktop`, 'x-scheme-handler/whatsapp'], () => {});
+  execFile(
+    "xdg-mime",
+    ["default", `${ROUTER_DESKTOP_ID}.desktop`, "x-scheme-handler/whatsapp"],
+    () => {},
+  );
 }
 
 module.exports = { ensureRouterRegistered, ROUTER_DESKTOP_ID };

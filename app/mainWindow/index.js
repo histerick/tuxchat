@@ -1,9 +1,19 @@
-'use strict';
+"use strict";
 
-const { app, BrowserWindow, Menu, WebContentsView, clipboard, session, shell } = require('electron');
-const path = require('node:path');
-const { t } = require('../i18n');
-const titlebar = require('./titlebar');
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  WebContentsView,
+  clipboard,
+  session,
+  shell,
+} = require("electron");
+const path = require("node:path");
+const { t } = require("../i18n");
+const titlebar = require("./titlebar");
+const { registerPermissionHandlers } = require("../permissions");
+const { registerScreenSharing } = require("../screenSharing");
 
 // WhatsApp Web rejects Electron's default UA ("... Electron/44.4.3 ...")
 // as an unsupported browser and asks to "update Chrome". This strips the
@@ -14,7 +24,8 @@ const DESKTOP_CHROME_UA = `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (K
 // Schemes safe to hand to the desktop (xdg-open). Anything else — file:,
 // javascript:, blob:, custom app schemes — is dropped, since a chat
 // message is untrusted input.
-const EXTERNAL_SCHEMES = new Set(['http:', 'https:', 'mailto:', 'tel:']);
+const EXTERNAL_SCHEMES = new Set(["http:", "https:", "mailto:", "tel:"]);
+const SIDEBAR_WIDTH = 68;
 
 function openExternally(url) {
   let parsed;
@@ -25,25 +36,26 @@ function openExternally(url) {
   }
   if (!EXTERNAL_SCHEMES.has(parsed.protocol)) return;
   shell.openExternal(parsed.href).catch((err) => {
-    console.error('No se pudo abrir el enlace en el navegador:', err);
+    console.error("No se pudo abrir el enlace en el navegador:", err);
   });
 }
 
-// Links in chats (Zoom, Meet, anything with target="_blank") would
-// otherwise open as a bare Electron popup sharing this session. Send them
-// to the user's default browser instead — which, if it's already running,
-// just gets a new tab in its existing window.
 function routeExternalLinks(contents, appUrl) {
   const appOrigin = new URL(appUrl).origin;
 
   contents.setWindowOpenHandler(({ url }) => {
+    const { extractDeepLinkArg } = require("../deepLinks/translate");
+    const deepLink = extractDeepLinkArg([url]);
+    if (deepLink) {
+      const { handleWhatsAppLink } = require("../router");
+      handleWhatsAppLink(deepLink, currentMainWindow);
+      return { action: "deny" };
+    }
     openExternally(url);
-    return { action: 'deny' };
+    return { action: "deny" };
   });
 
-  // Plain same-window navigations away from WhatsApp Web (a link without
-  // target="_blank") would replace the whole app with the external page.
-  contents.on('will-navigate', (event, url) => {
+  contents.on("will-navigate", (event, url) => {
     let origin;
     try {
       origin = new URL(url).origin;
@@ -52,31 +64,248 @@ function routeExternalLinks(contents, appUrl) {
     }
     if (origin === appOrigin) return;
     event.preventDefault();
+
     openExternally(url);
   });
 }
 
-// Electron ships no context menu at all, so right-clicking a link in a
-// chat (a Zoom/Meet invite, say) did nothing. Copying it lets the user
-// paste it wherever they want — another browser, a calendar, the Zoom
-// app — instead of only ever opening it in the default browser.
 function addLinkContextMenu(win, contents) {
-  contents.on('context-menu', (_event, params) => {
+  contents.on("context-menu", (_event, params) => {
     if (!params.linkURL) return;
     Menu.buildFromTemplate([
-      { label: t('contextMenu.copyLink'), click: () => clipboard.writeText(params.linkURL) },
-      { label: t('contextMenu.openLink'), click: () => openExternally(params.linkURL) },
+      {
+        label: t("contextMenu.copyLink"),
+        click: () => clipboard.writeText(params.linkURL),
+      },
+      {
+        label: t("contextMenu.openLink"),
+        click: () => openExternally(params.linkURL),
+      },
     ]).popup({ window: win });
   });
 }
 
-let whatsappContents = null;
+let currentMainWindow = null;
+let currentConfig = null;
+let activeSessionId = "tuxchat";
+const sessionViews = new Map(); // desktopId -> WebContentsView
 
-// Everything that talks to WhatsApp Web itself (deep links, reload, zoom,
-// devtools) goes through this: the window's own webContents is now the
-// title bar, not the page.
 function getWhatsAppContents() {
-  return whatsappContents;
+  const view = sessionViews.get(activeSessionId);
+  return view ? view.webContents : null;
+}
+
+function getActiveSessionId() {
+  return activeSessionId;
+}
+
+function updateLayout() {
+  if (!currentMainWindow || currentMainWindow.isDestroyed()) return;
+  // Use getContentBounds() for exact client coordinates inside win.contentView
+  const { width, height } = currentMainWindow.getContentBounds();
+  const top = currentMainWindow.isFullScreen() ? 0 : titlebar.HEIGHT;
+  const viewWidth = Math.max(0, width - SIDEBAR_WIDTH);
+  const viewHeight = Math.max(0, height - top);
+
+  for (const [id, sView] of sessionViews.entries()) {
+    if (id === activeSessionId) {
+      sView.setBounds({
+        x: 0,
+        y: top,
+        width: viewWidth,
+        height: viewHeight,
+      });
+    } else {
+      // Park inactive views off-screen to keep connection & background audio/notifications alive
+      sView.setBounds({
+        x: -10000,
+        y: -10000,
+        width: 100,
+        height: 100,
+      });
+    }
+  }
+}
+
+function getOrCreateSessionView(desktopId) {
+  if (sessionViews.has(desktopId)) {
+    return sessionViews.get(desktopId);
+  }
+
+  let partitionSession;
+  if (desktopId === "tuxchat") {
+    partitionSession = session.defaultSession;
+  } else {
+    partitionSession = session.fromPartition(`persist:${desktopId}`, {
+      cache: true,
+    });
+  }
+
+  partitionSession.setUserAgent(DESKTOP_CHROME_UA);
+  registerPermissionHandlers(partitionSession);
+  registerScreenSharing(partitionSession);
+
+  const view = new WebContentsView({
+    webPreferences: {
+      preload: path.join(__dirname, "..", "browser", "preload.js"),
+      contextIsolation: true,
+      sandbox: true,
+      backgroundThrottling: false,
+      session: partitionSession,
+    },
+  });
+
+  try {
+    const { getSessionMuted } = require("../sessions");
+    view.webContents.setAudioMuted(getSessionMuted(desktopId));
+  } catch {
+    // Sessions module not yet available
+  }
+
+  view.webContents.setUserAgent(DESKTOP_CHROME_UA);
+  routeExternalLinks(view.webContents, currentConfig.url);
+  addLinkContextMenu(currentMainWindow, view.webContents);
+
+  view.webContents.on("did-finish-load", () => {
+    updateLayout();
+    try {
+      const { getSessionMuted, getSessionVolume } = require("../sessions");
+      view.webContents.setAudioMuted(getSessionMuted(desktopId));
+      applyVolumeToWebContents(view.webContents, getSessionVolume(desktopId));
+    } catch {
+      // Sessions module not yet available
+    }
+    view.webContents
+      .executeJavaScript(
+        `
+      if (typeof window.abrirChatComMensagem !== 'function') {
+        window.abrirChatComMensagem = function(numero, mensagem = "") {
+          let numeroLimpo = String(numero).replace(/\\D/g, '');
+          if ((numeroLimpo.length === 10 || numeroLimpo.length === 11) && !numeroLimpo.startsWith('55')) {
+            numeroLimpo = '55' + numeroLimpo;
+          }
+          const mensagemCodificada = encodeURIComponent(mensagem || '');
+          const linkInvisivel = document.createElement('a');
+          linkInvisivel.setAttribute('href', \`https://web.whatsapp.com/send?phone=\${numeroLimpo}&text=\${mensagemCodificada}\`);
+          linkInvisivel.setAttribute('style', 'display:none;');
+          document.body.appendChild(linkInvisivel);
+          linkInvisivel.click();
+          document.body.removeChild(linkInvisivel);
+          console.log(\`%c[Sucesso] Abrindo chat para \${numeroLimpo} com mensagem pré-definida.\`, "color: #25D366; font-weight: bold;");
+        };
+      }
+    `,
+      )
+      .catch(() => {});
+  });
+
+  view.webContents.loadURL(currentConfig.url);
+  if (desktopId !== activeSessionId) {
+    view.setBounds({
+      x: -10000,
+      y: -10000,
+      width: 100,
+      height: 100,
+    });
+  }
+  currentMainWindow.contentView.addChildView(view);
+  sessionViews.set(desktopId, view);
+
+  return view;
+}
+
+function applyVolumeToWebContents(webContents, volumePercent) {
+  const fraction = Math.max(0, Math.min(1, (Number(volumePercent) || 0) / 100));
+  webContents
+    .executeJavaScript(
+      `
+    (() => {
+      window.__tuxchatInstanceVolume = ${fraction};
+      document.querySelectorAll('audio, video').forEach((el) => {
+        try { el.volume = ${fraction}; } catch (_) {}
+      });
+      if (!window.__tuxchatAudioHooked) {
+        window.__tuxchatAudioHooked = true;
+        const origPlay = HTMLMediaElement.prototype.play;
+        HTMLMediaElement.prototype.play = function(...args) {
+          if (typeof window.__tuxchatInstanceVolume === 'number') {
+            try { this.volume = window.__tuxchatInstanceVolume; } catch (_) {}
+          }
+          return origPlay.apply(this, args);
+        };
+      }
+    })()
+  `,
+    )
+    .catch(() => {});
+}
+
+function setAudioMutedForSession(desktopId, muted) {
+  const view = sessionViews.get(desktopId);
+  if (view && !view.webContents.isDestroyed()) {
+    view.webContents.setAudioMuted(Boolean(muted));
+  }
+}
+
+function setVolumeForSession(desktopId, volumePercent) {
+  const view = sessionViews.get(desktopId);
+  if (view && !view.webContents.isDestroyed()) {
+    applyVolumeToWebContents(view.webContents, volumePercent);
+  }
+}
+
+function switchSessionTab(desktopId) {
+  if (!currentMainWindow || currentMainWindow.isDestroyed())
+    return { ok: false };
+  const targetId = desktopId || "tuxchat";
+  activeSessionId = targetId;
+
+  const targetView = getOrCreateSessionView(targetId);
+  updateLayout();
+  targetView.webContents.focus();
+
+  try {
+    const { getSessionColor, listAllSessions } = require("../sessions");
+    const color = getSessionColor(targetId);
+    titlebar.setColor(color);
+    const sessions = listAllSessions();
+    const active = sessions.find((s) => s.desktopId === targetId);
+    if (active) {
+      let name = active.profileName || "";
+      const m = /^TuxChat\s*\((.+)\)$/i.exec(name);
+      if (m) name = m[1].charAt(0).toUpperCase() + m[1].slice(1);
+      const title = name ? `TuxChat - ${name}` : "TuxChat";
+      titlebar.setTitle(title);
+    }
+  } catch {
+    // Session color lookup error
+  }
+
+  try {
+    currentMainWindow.webContents.send("sessions:active-changed", targetId);
+  } catch {
+    // Window may be closing
+  }
+
+  return { ok: true, desktopId: targetId };
+}
+
+function removeSessionTab(desktopId) {
+  if (sessionViews.has(desktopId)) {
+    const sView = sessionViews.get(desktopId);
+    try {
+      if (currentMainWindow && !currentMainWindow.isDestroyed()) {
+        currentMainWindow.contentView.removeChildView(sView);
+      }
+      sView.webContents.close();
+    } catch (e) {
+      console.error("Error closing session view:", e);
+    }
+    sessionViews.delete(desktopId);
+  }
+  if (activeSessionId === desktopId) {
+    switchSessionTab("tuxchat");
+  }
 }
 
 function createMainWindow(config) {
@@ -92,72 +321,82 @@ function createMainWindow(config) {
     height: 800,
     title: config.appName,
     icon: config.appIcon,
-    titleBarStyle: 'hidden',
-    titleBarOverlay: { color: initial.bg, symbolColor: initial.fg, height: titlebar.HEIGHT },
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: initial.bg,
+      symbolColor: initial.fg,
+      height: titlebar.HEIGHT,
+    },
     backgroundColor: initial.bg,
     webPreferences: {
-      preload: path.join(__dirname, 'titlebar-preload.js'),
+      preload: path.join(__dirname, "titlebar-preload.js"),
       contextIsolation: true,
       sandbox: true,
     },
   });
-  win.loadFile(path.join(__dirname, 'titlebar.html'));
+  win.loadFile(path.join(__dirname, "titlebar.html"));
 
-  // WhatsApp Web lives in its own view below the bar, in the default
-  // session like before, so logins, permissions and screen sharing are
-  // unaffected.
-  const view = new WebContentsView({
-    webPreferences: {
-      preload: path.join(__dirname, '..', 'browser', 'preload.js'),
-      contextIsolation: true,
-      sandbox: true,
-      backgroundThrottling: false,
-    },
+  currentMainWindow = win;
+  currentConfig = config;
+  activeSessionId = "tuxchat";
+
+  // Initialize main session view first
+  getOrCreateSessionView("tuxchat");
+
+  // Preload all registered sessions on startup so WhatsApp Web is immediately loaded for all accounts
+  try {
+    const { listAllSessions } = require("../sessions");
+    const sessions = listAllSessions();
+    for (const s of sessions) {
+      if (s && s.desktopId && s.desktopId !== "tuxchat") {
+        getOrCreateSessionView(s.desktopId);
+      }
+    }
+  } catch (err) {
+    console.error("Error preloading sessions:", err);
+  }
+
+  updateLayout();
+
+  // Handle all resize and maximize events on Windows & Linux
+  win.on("resize", updateLayout);
+  win.on("maximize", updateLayout);
+  win.on("unmaximize", updateLayout);
+  win.on("restore", updateLayout);
+  win.on("resized", updateLayout);
+
+  win.on("enter-full-screen", () => {
+    updateLayout();
+    win.webContents.send("window:fullscreen", true);
   });
-  whatsappContents = view.webContents;
-  win.contentView.addChildView(view);
+  win.on("leave-full-screen", () => {
+    updateLayout();
+    win.webContents.send("window:fullscreen", false);
+  });
 
-  // Fullscreen hands the whole screen to WhatsApp: the bar's job (title,
-  // menus, window buttons) doesn't apply there.
-  //
-  // Sized from getBounds(), not getContentSize(): the window is frameless,
-  // so both are the same, but under X11 minimizing fires a resize with a
-  // shrunken size and the resize on restore arrives while getContentSize()
-  // still reports that stale size, leaving WhatsApp short of the window's
-  // right and bottom edges.
-  const layout = () => {
-    const { width, height } = win.getBounds();
-    const top = win.isFullScreen() ? 0 : titlebar.HEIGHT;
-    view.setBounds({ x: 0, y: top, width, height: height - top });
-  };
-  layout();
-  win.on('resize', layout);
-  win.on('enter-full-screen', layout);
-  win.on('leave-full-screen', layout);
+  win.on("focus", () => {
+    const active = sessionViews.get(activeSessionId);
+    if (active) active.webContents.focus();
+  });
 
-  // Keystrokes should land in WhatsApp, not in the bar, whenever the
-  // window is brought forward.
-  win.on('focus', () => view.webContents.focus());
+  try {
+    const { listAllSessions } = require("../sessions");
+    const all = listAllSessions();
+    const mainS = all.find((s) => s.desktopId === "tuxchat") || all[0];
+    let mainName = mainS && mainS.profileName ? mainS.profileName : "";
+    const m = /^TuxChat\s*\((.+)\)$/i.exec(mainName);
+    if (m) mainName = m[1].charAt(0).toUpperCase() + m[1].slice(1);
+    const initialTitle = mainName ? `TuxChat - ${mainName}` : config.appName;
+    titlebar.attach(win, initialTitle);
+  } catch {
+    titlebar.attach(win, config.appName);
+  }
 
-  view.webContents.setUserAgent(DESKTOP_CHROME_UA);
-  routeExternalLinks(view.webContents, config.url);
-  addLinkContextMenu(win, view.webContents);
-  view.webContents.loadURL(config.url);
-
-  titlebar.attach(win, config.appName);
-
-  // Electron syncs the window title to the loaded page's document.title by
-  // default — now the bar's page — which would silently overwrite our
-  // profile name and defeat the point of being able to tell sessions
-  // apart in the dock hover preview / Alt-Tab. Keep our own title pinned.
-  win.on('page-title-updated', (event) => {
+  win.on("page-title-updated", (event) => {
     event.preventDefault();
   });
 
-  // Hide to tray instead of quitting: WhatsApp Web needs to stay loaded
-  // in the background to keep receiving calls/messages, same as the
-  // official desktop client's behavior.
-  win.on('close', (event) => {
+  win.on("close", (event) => {
     if (!app.isQuitting) {
       event.preventDefault();
       win.hide();
@@ -167,4 +406,125 @@ function createMainWindow(config) {
   return win;
 }
 
-module.exports = { createMainWindow, getWhatsAppContents };
+function getMainWindow() {
+  return currentMainWindow;
+}
+
+function sendWhatsAppMessageToSession(desktopId, phone, text, autoSend = false) {
+  const targetId = desktopId || "tuxchat";
+  switchSessionTab(targetId);
+
+  const view = getOrCreateSessionView(targetId);
+  if (!view || !view.webContents) return;
+
+  if (currentMainWindow && !currentMainWindow.isDestroyed()) {
+    if (currentMainWindow.isMinimized()) currentMainWindow.restore();
+    currentMainWindow.show();
+    currentMainWindow.focus();
+  }
+
+  if (!phone) return;
+
+  const cleanPhone = String(phone).replace(/\D/g, "");
+  const fullPhone =
+    (cleanPhone.length === 10 || cleanPhone.length === 11) &&
+    !cleanPhone.startsWith("55")
+      ? `55${cleanPhone}`
+      : cleanPhone;
+  const encodedText = encodeURIComponent(text || "");
+  const targetWebUrl = `https://web.whatsapp.com/send?phone=${fullPhone}&text=${encodedText}`;
+  const shouldAutoSend = Boolean(autoSend && text && text.trim().length > 0);
+
+  const jsCode = `
+    (function() {
+      try {
+        const linkInvisivel = document.createElement('a');
+        linkInvisivel.setAttribute('href', ${JSON.stringify(targetWebUrl)});
+        linkInvisivel.setAttribute('style', 'display:none;');
+        document.body.appendChild(linkInvisivel);
+        linkInvisivel.click();
+        document.body.removeChild(linkInvisivel);
+      } catch (e) {
+        console.error("Erro ao despachar chat no WhatsApp Web:", e);
+      }
+
+      if (${shouldAutoSend}) {
+        let attempts = 0;
+        const maxAttempts = 60;
+        const checkInterval = setInterval(() => {
+          attempts++;
+          try {
+            const sendIcon = document.querySelector(
+              'footer span[data-icon="send"], footer span[data-icon="send-light"], footer span[data-icon="wds-ic-send-filled"], span[data-icon="send"]'
+            );
+            const sendBtn = sendIcon ? sendIcon.closest('button') : null;
+            if (sendBtn) {
+              sendBtn.click();
+              clearInterval(checkInterval);
+              return;
+            }
+
+            const ariaBtn = document.querySelector(
+              'footer button[aria-label="Enviar"], footer button[aria-label="Send"], footer button[aria-label="enviar"], footer button[data-tab="11"]'
+            );
+            if (ariaBtn) {
+              ariaBtn.click();
+              clearInterval(checkInterval);
+              return;
+            }
+
+            const chatInput = document.querySelector(
+              'footer div[contenteditable="true"][data-tab="10"], footer div[contenteditable="true"]'
+            );
+            if (chatInput && chatInput.textContent && chatInput.textContent.trim().length > 0) {
+              chatInput.focus();
+              const enterEvent = new KeyboardEvent('keydown', {
+                key: 'Enter',
+                code: 'Enter',
+                keyCode: 13,
+                which: 13,
+                bubbles: true,
+                cancelable: true,
+              });
+              chatInput.dispatchEvent(enterEvent);
+              clearInterval(checkInterval);
+              return;
+            }
+          } catch (err) {
+            console.error("Erro no auto-send do TuxChat:", err);
+          }
+
+          if (attempts >= maxAttempts) {
+            clearInterval(checkInterval);
+          }
+        }, 300);
+      }
+    })();
+  `;
+
+  if (view.webContents.isLoading()) {
+    view.webContents.once("did-finish-load", () => {
+      setTimeout(() => {
+        if (!view.webContents.isDestroyed()) {
+          view.webContents.executeJavaScript(jsCode).catch(() => {});
+        }
+      }, 700);
+    });
+  } else {
+    view.webContents.executeJavaScript(jsCode).catch(() => {});
+  }
+}
+
+module.exports = {
+  createMainWindow,
+  getMainWindow,
+  getWhatsAppContents,
+  switchSessionTab,
+  removeSessionTab,
+  getActiveSessionId,
+  updateLayout,
+  setAudioMutedForSession,
+  setVolumeForSession,
+  sendWhatsAppMessageToSession,
+  getLoadedSessionIds: () => Array.from(sessionViews.keys()),
+};

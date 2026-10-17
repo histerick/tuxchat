@@ -7,22 +7,25 @@
       body {
         margin: 0;
         font-family: sans-serif;
-        background: #111b21;
+        background: #1d1f1f;
         color: #e9edef;
         padding: 16px;
         box-sizing: border-box;
         font-size: 16px;
       }
+
       h1 {
         font-size: 18px;
         font-weight: normal;
         margin: 0 0 4px;
       }
+
       #hint {
         font-size: 13px;
         color: #8696a0;
         margin: 0 0 16px;
       }
+
       input {
         width: 100%;
         box-sizing: border-box;
@@ -33,21 +36,25 @@
         padding: 8px 10px;
         font-size: 16px;
       }
+
       input:focus {
         outline: none;
         border-color: #00a884;
       }
+
       #error {
         color: #f15c6d;
         font-size: 14px;
         margin: 10px 0 0;
       }
+
       .actions {
         display: flex;
         justify-content: flex-end;
         gap: 8px;
         margin-top: 20px;
       }
+
       button {
         background: #202c33;
         border: none;
@@ -57,16 +64,19 @@
         font-size: 16px;
         cursor: pointer;
       }
+
       button#confirm {
         background: #00a884;
-        color: #111b21;
+        color: #1d1f1f;
       }
+
       button:disabled {
         opacity: 0.5;
         cursor: default;
       }
     </style>
   </head>
+
   <body>
     <h1 id="heading"></h1>
     <p id="hint"></p>

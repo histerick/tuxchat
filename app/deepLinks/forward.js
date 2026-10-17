@@ -1,9 +1,9 @@
-'use strict';
+"use strict";
 
-const { app } = require('electron');
-const path = require('node:path');
-const { execFile } = require('node:child_process');
-const { listDeletableSessions } = require('../sessions');
+const { app } = require("electron");
+const path = require("node:path");
+const { execFile } = require("node:child_process");
+const { listDeletableSessions } = require("../sessions");
 
 // Reuses the exact same launch shape sessions/index.js's buildLauncherScript
 // generates, but spawned directly instead of via a persisted .sh file —
@@ -17,15 +17,17 @@ const { listDeletableSessions } = require('../sessions');
 //   handler with this argv — Electron's built-in way to hand data to an
 //   already-running instance, no custom IPC needed.
 function launchArgsFor(desktopId) {
-  if (!desktopId || desktopId === 'tuxchat') {
-    return { userDataDir: null, profileName: '', windowClass: 'tuxchat' };
+  if (!desktopId || desktopId === "tuxchat") {
+    return { userDataDir: null, profileName: "", windowClass: "tuxchat" };
   }
 
-  const session = listDeletableSessions().find((s) => s.desktopId === desktopId);
+  const session = listDeletableSessions().find(
+    (s) => s.desktopId === desktopId,
+  );
   if (!session) return null;
 
   return {
-    userDataDir: path.join(app.getPath('home'), '.config', desktopId),
+    userDataDir: path.join(app.getPath("home"), ".config", desktopId),
     profileName: session.profileName,
     windowClass: desktopId,
   };
@@ -49,7 +51,10 @@ function forwardToSession(desktopId, whatsappUrl) {
   // execFile with an argv array, never a shell string: whatsappUrl comes
   // from an external link a user clicked, so it has to reach the child
   // process as a single opaque argument, not get shell-interpreted.
-  const child = execFile(process.execPath, args, { detached: true, stdio: 'ignore' });
+  const child = execFile(process.execPath, args, {
+    detached: true,
+    stdio: "ignore",
+  });
   child.unref();
   return true;
 }

@@ -1,17 +1,18 @@
-const LOCALE = new URLSearchParams(location.search).get('locale') === 'es' ? 'es' : 'en';
+const LOCALE =
+  new URLSearchParams(location.search).get("locale") === "es" ? "es" : "en";
 const L = window.TUXCHAT_STRINGS[LOCALE].renameDialog;
 
 document.documentElement.lang = LOCALE;
 document.title = L.windowTitle;
-document.getElementById('heading').textContent = L.heading;
-document.getElementById('hint').textContent = L.hint;
-document.getElementById('cancel').textContent = L.cancel;
-document.getElementById('confirm').textContent = L.confirm;
+document.getElementById("heading").textContent = L.heading;
+document.getElementById("hint").textContent = L.hint;
+document.getElementById("cancel").textContent = L.cancel;
+document.getElementById("confirm").textContent = L.confirm;
 
-const nameInput = document.getElementById('name');
-const errorEl = document.getElementById('error');
-const cancelBtn = document.getElementById('cancel');
-const confirmBtn = document.getElementById('confirm');
+const nameInput = document.getElementById("name");
+const errorEl = document.getElementById("error");
+const cancelBtn = document.getElementById("cancel");
+const confirmBtn = document.getElementById("confirm");
 
 function showError(message) {
   errorEl.textContent = message;
@@ -29,7 +30,7 @@ window.renameSessionDialog.getCurrent().then(({ profileName, canRename }) => {
   nameInput.select();
 });
 
-cancelBtn.addEventListener('click', () => window.close());
+cancelBtn.addEventListener("click", () => window.close());
 
 async function submit() {
   const name = nameInput.value.trim();
@@ -48,7 +49,7 @@ async function submit() {
   window.close();
 }
 
-confirmBtn.addEventListener('click', submit);
-nameInput.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') submit();
+confirmBtn.addEventListener("click", submit);
+nameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") submit();
 });

@@ -3,82 +3,103 @@
 ![License](https://img.shields.io/github/license/histerick/tuxchat)
 ![Latest release](https://img.shields.io/github/v/release/histerick/tuxchat)
 
-[English](README.md) · **Español**
+[English](README.md) · **Español** · [Português](README.pt.md)
 
-Cliente de escritorio no oficial de WhatsApp Web para Linux (Electron), con
-soporte completo de llamadas/video y screen share, múltiples sesiones
-aisladas en paralelo, y soporte de enlaces `whatsapp://`.
+Cliente de escritorio no oficial de WhatsApp Web para Linux y Windows (Electron), con soporte completo de llamadas/videollamadas y compartir pantalla, múltiples cuentas aisladas en pestañas con barra lateral estilo Discord, personalización independiente de colores por sesión y soporte de enlaces `whatsapp://` y `wa.me`.
 
-**Estado: en desarrollo temprano (v0.2), no listo para uso diario.**
+---
 
-Probado en Ubuntu 26.04 con GPU NVIDIA. Debería funcionar en otras
-distros/GPUs (el `.deb` solo depende de librerías estándar de
-GTK/Debian, y `--ozone-platform=x11` solo se fuerza si detecta NVIDIA en
-Wayland), pero todavía no está verificado — reportes de otros entornos son
-bienvenidos.
+## Características y Novedades
 
-## Capturas
+### 👥 Múltiples Sesiones Aisladas en Pestañas
 
-![Dos sesiones aisladas abiertas en paralelo](docs/screenshots/screen-05-two-sessions-open.jpg)
+- **Barra lateral derecha estilo Discord**: administrá hasta 6 cuentas de WhatsApp simultáneamente en una sola ventana.
+- **Arrastrar para reordenar**: ordená tus sesiones arrastrando los íconos hacia arriba o abajo libremente con respuesta visual fluida.
+- **Identificación visual rápida**: foto de perfil personalizada (con recorte cuadrado y compresión automática en WebP) o iniciales dinámicas con alto contraste.
+- **Cambio instantáneo**: alternancia fluida entre cuentas gracias a `WebContentsView` de Electron, manteniendo bajo el consumo de memoria y las conexiones activas.
+- **Control de audio individual y silenciar**: hacé clic derecho en la sesión para silenciar su audio al instante o elegir el nivel de volumen individual (100%, 75%, 50%, 25%, 10%, Mudo). Las sesiones silenciadas muestran un distintivo visual.
+- **Menú contextual completo**: hacé clic derecho para editar nombre/foto, cambiar color, ajustar volumen, silenciar o eliminar la sesión.
 
-| | |
-|---|---|
-| ![Sessions → Add session…](docs/screenshots/screen-01-add-session.jpg) | ![Nombrar la nueva sesión](docs/screenshots/screen-02-name-new-session.jpg) |
-| **1.** Sessions → Add session… | **2.** Nombrá la nueva sesión aislada |
-| ![Sessions → WhatsApp links…](docs/screenshots/screen-03-setting-whatsapp-links.jpg) | ![Elegir qué sesión abre los enlaces whatsapp://](docs/screenshots/screen-04-select-account-open-link.jpg) |
-| **3.** Sessions → WhatsApp links… | **4.** Elegí qué sesión abre los enlaces `whatsapp://` |
+### 🎨 Colores de Sesión Independientes y Dinámicos
+
+- Cada sesión guarda su propio color de manera independiente.
+- **Selector de color personalizado**: paleta con colores predefinidos y selector hexadecimal para cualquier tono personalizado.
+- **Barra lateral**:
+  - Sesión inactiva: ícono o borde del avatar con el color configurado.
+  - Sesión activa: relleno completo con el color de la sesión, texto de alto contraste calculado automáticamente (YIQ), efecto de resplandor (_glow_) e indicador lateral (_pill_).
+- **Barra de título sincronizada**: al cambiar de pestaña de sesión, la barra superior actualiza automáticamente su color para coincidir con la cuenta activa.
+
+### 🌐 Soporte Multi-idioma
+
+- Tres idiomas completos disponibles:
+  - **Inglés (English)** — predeterminado al instalar o en el primer inicio.
+  - **Español**
+  - **Português (Brasil)**
+- Cambiá de idioma en cualquier momento desde **Archivo > Idioma** / **File > Language**. Todos los menús, modales y barras se actualizan en el momento y la preferencia queda guardada.
+
+### ℹ️ Diálogo "Acerca de TuxChat"
+
+- Accesible desde el menú superior **Acerca de > Acerca de TuxChat**.
+- Muestra la versión de la app, versiones del runtime (Electron, Chromium, Node.js), plataforma del sistema y enlace directo al repositorio en GitHub.
+
+### 🔗 Enlaces de WhatsApp (`whatsapp://` y `wa.me`)
+
+- TuxChat se registra ante el sistema como el manejador predeterminado del esquema `whatsapp://`.
+- Los enlaces en navegadores o correos abren directamente el chat en la sesión activa o en el selector integrado de cuentas.
+- **Selector de cuenta con opción para ocultar**: elegí con qué sesión abrir el link, confirmá con doble clic o tecla Enter, y ocultá sesiones que no desees que aparezcan en la lista.
+- Sesión predeterminada configurable en **Archivo > Configuración > Enlaces de WhatsApp...**.
+
+### 💬 Enlaces dentro de los Chats
+
+- Los enlaces recibidos en los chats (Zoom, Google Meet, sitios web) se abren en tu navegador predeterminado en lugar de ventanas emergentes internas.
+- Clic derecho en cualquier enlace para **Copiar enlace**.
+
+---
 
 ## Instalación
 
-Descargá el instalador desde
-[Releases](https://github.com/histerick/tuxchat/releases):
+Descargá el instalador desde la página de [Releases](https://github.com/histerick/tuxchat/releases):
 
-- **Ubuntu/Debian:** `tuxchat_<version>_amd64.deb` — `sudo apt install ./tuxchat_<version>_amd64.deb`, o doble clic para abrirlo con el instalador de software.
-- **Cualquier otra distro:** `TuxChat-<version>.AppImage` — dale permiso de ejecución y corrélo directo, no requiere instalación ni `libfuse2` (distros recientes como Ubuntu 24.04+ ya no lo traen por defecto).
+- **Ubuntu/Debian (.deb):**
+  ```bash
+  sudo apt install ./tuxchat_<version>_amd64.deb
+  ```
+  O doble clic para abrirlo con el instalador de software de tu distribución.
+- **Cualquier otra distribución Linux (AppImage):**
+  Dale permiso de ejecución (`chmod +x TuxChat-*.AppImage`) y ejecutalo directamente. No requiere instalación ni `libfuse2`.
+- **Windows:**
+  Ejecutá mediante instalador o terminal.
 
 ### Actualizaciones
 
-- **AppImage:** se actualiza solo, en segundo plano — revisa si hay versión nueva al abrir y cada 4 horas mientras corre, la descarga sin interrumpir, y la instala la próxima vez que cerrás la app. Al abrir después de actualizar, muestra una ventana única con las novedades de esa versión.
-- **.deb:** no se autoactualiza (lo maneja `apt`) — bajá el paquete nuevo desde [Releases](https://github.com/histerick/tuxchat/releases) cuando salga uno.
+- **AppImage:** se actualiza en segundo plano, revisando al inicio y cada 4 horas. Al abrir luego de una actualización, se muestra una ventana con las novedades de la versión.
+- **.deb:** administrado por `apt` — descargá el nuevo paquete `.deb` de los lanzamientos.
 
-## Múltiples sesiones
-
-Desde el menú de la ventana: **Sesiones > Añadir sesión...** crea una
-sesión de WhatsApp completamente aislada (login, caché y datos propios),
-con su propio ícono y entrada en el menú de aplicaciones. **Renombrar** y
-**Eliminar** funcionan igual, desde el mismo menú.
-
-Cada sesión aparece como una app aparte en el dock: podés anclar cada una
-por separado y cada una recibe sus propias notificaciones. **Sesiones >
-Color de la sesión...** le asigna un color a la sesión — tiñe la barra
-de título (un tono oscuro con el tema oscuro del sistema, uno claro con el
-tema claro) y el ícono (ventana, bandeja y dock) — para distinguir tus
-cuentas de un vistazo.
-
-## Enlaces de WhatsApp (whatsapp://)
-
-TuxChat se registra ante el sistema como manejador del esquema
-`whatsapp://`, así que un link tipo `wa.me/<numero>` o
-`whatsapp://send?phone=...&text=...` clickeado desde cualquier otra app
-(navegador, mail, etc.) abre el chat directo en TuxChat, en vez de quedar
-atrapado en la versión de WhatsApp del navegador. Con más de una sesión
-configurada, la primera vez pregunta con cuál abrirlo (con opción de
-recordar la elección); se administra desde **Sesiones > Enlaces de
-WhatsApp...**.
-
-## Enlaces dentro de los chats
-
-Los enlaces que llegan en un chat (Zoom, Google Meet, cualquier página
-web) se abren en tu navegador predeterminado — como pestaña nueva si ya
-está abierto — en vez de en una ventana emergente de TuxChat. Con clic
-derecho sobre un enlace podés **Copiar enlace** y pegarlo donde quieras.
+---
 
 ## Desarrollo
 
+Requisitos: Node.js (v20+ recomendado) y npm.
+
 ```bash
+# Instalar dependencias
 npm install
+
+# Iniciar en modo de desarrollo con recarga automática (nodemon)
+npm run dev
+
+# Ejecutar directamente con Electron
 npm start
+
+# Verificar estilo y linter
+npm run lint
+
+# Formatear código con Prettier
+npm run format
 ```
 
-La bitácora de desarrollo detallada vive fuera de este repo mientras el
-proyecto madura; ver `tuxchat.md` en el equipo de desarrollo.
+---
+
+## Licencia
+
+Distribuido bajo la licencia [MIT](LICENSE).

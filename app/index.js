@@ -1,27 +1,33 @@
-'use strict';
+"use strict";
 
-const fs = require('node:fs');
-const path = require('node:path');
-const { spawn } = require('node:child_process');
-const { app, BrowserWindow, session } = require('electron');
-const { getConfig } = require('./config');
-const { createMainWindow, getWhatsAppContents } = require('./mainWindow');
-const { registerPermissionHandlers } = require('./permissions');
-const { registerScreenSharing } = require('./screenSharing');
-const { createTray } = require('./tray');
-const { buildMenu } = require('./menus');
-const { registerSelfContext } = require('./sessions');
-const { initSessionColor, registerSessionColor } = require('./sessionColor');
-const { ensureRouterRegistered, extractDeepLinkArg, translateToWebUrl } = require('./deepLinks');
-const { initUpdater } = require('./updater');
+const fs = require("node:fs");
+const path = require("node:path");
+const { spawn } = require("node:child_process");
+const { app, BrowserWindow, session } = require("electron");
+const { getConfig } = require("./config");
+const { createMainWindow } = require("./mainWindow");
+const { registerPermissionHandlers } = require("./permissions");
+const { registerScreenSharing } = require("./screenSharing");
+const { createTray } = require("./tray");
+const { buildMenu } = require("./menus");
+const { registerSelfContext } = require("./sessions");
+const { initSessionColor, registerSessionColor } = require("./sessionColor");
+const { ensureRouterRegistered, extractDeepLinkArg } = require("./deepLinks");
+const { initUpdater } = require("./updater");
 
 function isWaylandSession() {
-  return process.env.XDG_SESSION_TYPE === 'wayland' || Boolean(process.env.WAYLAND_DISPLAY);
+  return (
+    process.env.XDG_SESSION_TYPE === "wayland" ||
+    Boolean(process.env.WAYLAND_DISPLAY)
+  );
 }
 
 function hasNvidiaGpu() {
   try {
-    return fs.existsSync('/proc/driver/nvidia/version') || fs.existsSync('/sys/module/nvidia');
+    return (
+      fs.existsSync("/proc/driver/nvidia/version") ||
+      fs.existsSync("/sys/module/nvidia")
+    );
   } catch {
     return false;
   }
@@ -39,10 +45,10 @@ function hasNvidiaGpu() {
 // processes fine, the window still never maps without a *real* CLI
 // argument), so this re-execs with the flag as actual argv instead.
 const needsX11Relaunch =
-  process.platform === 'linux' &&
+  process.platform === "linux" &&
   isWaylandSession() &&
   hasNvidiaGpu() &&
-  !process.argv.includes('--ozone-platform=x11');
+  !process.argv.includes("--ozone-platform=x11");
 
 // Set only on the child spawned by the relaunch below. Read once and
 // removed right away: this process itself launches other sessions (see
@@ -82,10 +88,14 @@ if (needsX11Relaunch) {
   // keeps that extraction alive for as long as it's needed, and costs
   // nothing on non-AppImage builds (.deb, dev mode): this process doesn't
   // own a window yet at this point, so lingering a bit longer is free.
-  const child = spawn(process.execPath, process.argv.slice(1).concat('--ozone-platform=x11'), {
-    stdio: 'inherit',
-    env: { ...process.env, TUXCHAT_RELAUNCH_PARENT: String(process.pid) },
-  });
+  const child = spawn(
+    process.execPath,
+    process.argv.slice(1).concat("--ozone-platform=x11"),
+    {
+      stdio: "inherit",
+      env: { ...process.env, TUXCHAT_RELAUNCH_PARENT: String(process.pid) },
+    },
+  );
   // Not process.on('SIGTERM'): Electron installs its own SIGTERM/SIGINT/
   // SIGHUP handlers that turn the signal straight into app.quit(), so a
   // Node-level listener never runs — confirmed live, the parent exited and
@@ -93,15 +103,15 @@ if (needsX11Relaunch) {
   // catches every signal Electron handles: hold the quit, ask the child to
   // close cleanly, and let its 'exit' below end this process. The timeout
   // only covers a child that hangs on shutdown.
-  app.on('will-quit', (event) => {
+  app.on("will-quit", (event) => {
     if (child.exitCode !== null || child.signalCode !== null) return;
     event.preventDefault();
-    child.kill('SIGTERM');
-    setTimeout(() => child.kill('SIGKILL'), 10_000).unref();
+    child.kill("SIGTERM");
+    setTimeout(() => child.kill("SIGKILL"), 10_000).unref();
   });
-  child.on('error', () => app.exit(1));
-  child.on('exit', (code, signal) => app.exit(signal ? 1 : (code ?? 0)));
-} else if (process.argv.includes('--tuxchat-deep-link-router')) {
+  child.on("error", () => app.exit(1));
+  child.on("exit", (code, signal) => app.exit(signal ? 1 : (code ?? 0)));
+} else if (process.argv.includes("--tuxchat-deep-link-router")) {
   // A whatsapp:// link was handed to the router .desktop entry, not to a
   // real WhatsApp session — see deepLinks/router-install.js. This process
   // never opens the app's own window; it only decides which session
@@ -116,12 +126,15 @@ if (needsX11Relaunch) {
   // Underscore, not hyphen — same reasoning as ROUTER_DESKTOP_ID: a real
   // session named "Router" would slugify to desktopId "tuxchat-router"
   // and its --user-data-dir would collide with this one otherwise.
-  app.setPath('userData', path.join(app.getPath('home'), '.config', 'tuxchat_router'));
+  app.setPath(
+    "userData",
+    path.join(app.getPath("home"), ".config", "tuxchat_router"),
+  );
   app
     .whenReady()
-    .then(() => require('./router').run(process.argv))
+    .then(() => require("./router").run(process.argv))
     .catch((err) => {
-      console.error('Fallo el router de enlaces de TuxChat:', err);
+      console.error("Fallo el router de enlaces de TuxChat:", err);
       app.exit(1);
     });
 } else {
@@ -132,13 +145,9 @@ if (needsX11Relaunch) {
   // below. Pre-seeding config.url here means a cold-started session opens
   // straight into the right chat instead of the default inbox.
   const initialDeepLink = extractDeepLinkArg(process.argv);
-  if (initialDeepLink) {
-    const translated = translateToWebUrl(initialDeepLink);
-    if (translated) config.url = translated;
-  }
 
   if (config.ozonePlatform) {
-    app.commandLine.appendSwitch('ozone-platform', config.ozonePlatform);
+    app.commandLine.appendSwitch("ozone-platform", config.ozonePlatform);
   }
 
   app.setName(config.appName);
@@ -158,48 +167,71 @@ if (needsX11Relaunch) {
   if (!gotLock) {
     app.quit();
   } else {
-    app.on('second-instance', (_event, argv) => {
-      const win = BrowserWindow.getAllWindows()[0];
-      if (!win) return;
+    app.on("second-instance", (_event, argv) => {
+      const win = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+      if (win) {
+        if (win.isMinimized()) win.restore();
+        win.show();
+        if (process.platform === "win32") {
+          win.setAlwaysOnTop(true);
+          win.focus();
+          win.setAlwaysOnTop(false);
+        } else {
+          win.focus();
+        }
+      }
 
       const deepLink = extractDeepLinkArg(argv);
       if (deepLink) {
-        const translated = translateToWebUrl(deepLink);
-        if (translated) getWhatsAppContents().loadURL(translated);
+        const { handleWhatsAppLink } = require("./router");
+        handleWhatsAppLink(deepLink, win);
       }
-
-      if (win.isMinimized()) win.restore();
-      win.show();
-      win.focus();
     });
 
-    app.on('before-quit', () => {
+    app.on("before-quit", () => {
       app.isQuitting = true;
     });
 
-    app.whenReady().then(() => {
-      registerPermissionHandlers(session.defaultSession);
-      registerScreenSharing(session.defaultSession);
+    app
+      .whenReady()
+      .then(() => {
+        registerPermissionHandlers(session.defaultSession);
+        registerScreenSharing(session.defaultSession);
 
-      initSessionColor();
-      const mainWindow = createMainWindow(config);
-      const tray = createTray(mainWindow, config);
-      registerSelfContext(mainWindow, tray, config.profileName, config.wmClass);
-      registerSessionColor(mainWindow, tray, config);
-      buildMenu(mainWindow);
-      ensureRouterRegistered();
-      initUpdater(config);
-    }).catch((err) => {
-      // Without this, a thrown error here becomes a silent unhandled
-      // promise rejection — the window can still open (created earlier in
-      // the chain) while menu/tray/session setup quietly never finishes,
-      // with nothing in the UI hinting that anything went wrong. Exactly
-      // what happened with the missing-icon bug this guards against.
-      console.error('Fallo al inicializar TuxChat:', err);
-    });
+        initSessionColor();
+        const mainWindow = createMainWindow(config);
+        const tray = createTray(mainWindow, config);
+        registerSelfContext(
+          mainWindow,
+          tray,
+          config.profileName,
+          config.wmClass,
+        );
+        registerSessionColor(mainWindow, tray, config);
+        buildMenu(mainWindow);
+        ensureRouterRegistered();
+        initUpdater(config);
 
-    app.on('window-all-closed', () => {
-      if (process.platform !== 'darwin') app.quit();
+        if (initialDeepLink) {
+          mainWindow.webContents.once("did-finish-load", () => {
+            setTimeout(() => {
+              const { handleWhatsAppLink } = require("./router");
+              handleWhatsAppLink(initialDeepLink, mainWindow);
+            }, 600);
+          });
+        }
+      })
+      .catch((err) => {
+        // Without this, a thrown error here becomes a silent unhandled
+        // promise rejection — the window can still open (created earlier in
+        // the chain) while menu/tray/session setup quietly never finishes,
+        // with nothing in the UI hinting that anything went wrong. Exactly
+        // what happened with the missing-icon bug this guards against.
+        console.error("Fallo al inicializar TuxChat:", err);
+      });
+
+    app.on("window-all-closed", () => {
+      if (process.platform !== "darwin") app.quit();
     });
   }
 }

@@ -1,6 +1,6 @@
-'use strict';
+"use strict";
 
-const ALLOWED_ORIGIN = 'https://web.whatsapp.com';
+const ALLOWED_ORIGIN = "https://web.whatsapp.com";
 
 // 'media' covers both getUserMedia (camera/mic for calls) and
 // getDisplayMedia (screen share). Without granting it explicitly here,
@@ -12,11 +12,11 @@ const ALLOWED_ORIGIN = 'https://web.whatsapp.com';
 // protected — under storage/memory pressure it can get evicted, which can
 // surface as the chat silently reloading mid-session.
 const ALLOWED_PERMISSIONS = new Set([
-  'media',
-  'notifications',
-  'clipboard-read',
-  'clipboard-sanitized-write',
-  'persistent-storage',
+  "media",
+  "notifications",
+  "clipboard-read",
+  "clipboard-sanitized-write",
+  "persistent-storage",
 ]);
 
 // Electron passes requestingOrigin with a trailing slash to the permission
@@ -35,12 +35,15 @@ function isAllowed(requestingOrigin, permission) {
 }
 
 function registerPermissionHandlers(targetSession) {
-  targetSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    callback(isAllowed(webContents.getURL(), permission));
-  });
+  targetSession.setPermissionRequestHandler(
+    (webContents, permission, callback) => {
+      callback(isAllowed(webContents.getURL(), permission));
+    },
+  );
 
-  targetSession.setPermissionCheckHandler((_webContents, permission, requestingOrigin) =>
-    isAllowed(requestingOrigin, permission)
+  targetSession.setPermissionCheckHandler(
+    (_webContents, permission, requestingOrigin) =>
+      isAllowed(requestingOrigin, permission),
   );
 }
 

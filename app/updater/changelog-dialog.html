@@ -7,7 +7,7 @@
       body {
         margin: 0;
         font-family: sans-serif;
-        background: #111b21;
+        background: #1d1f1f;
         color: #e9edef;
         padding: 16px;
         box-sizing: border-box;
@@ -16,16 +16,19 @@
         display: flex;
         flex-direction: column;
       }
+
       h1 {
         font-size: 18px;
         font-weight: normal;
         margin: 0 0 4px;
       }
+
       #subheading {
         font-size: 13px;
         color: #8696a0;
         margin: 0 0 16px;
       }
+
       #notes {
         font-size: 14px;
         line-height: 1.5;
@@ -37,44 +40,53 @@
         min-height: 0;
         overflow-y: auto;
       }
+
       #notes.plain {
         white-space: pre-wrap;
       }
+
       #notes > :first-child {
         margin-top: 0;
       }
+
       #notes > :last-child {
         margin-bottom: 0;
       }
+
       #notes p,
       #notes ul,
       #notes ol {
         margin: 0 0 10px;
       }
+
       #notes ul,
       #notes ol {
         padding-left: 20px;
       }
+
       #notes code {
         font-family: monospace;
         font-size: 13px;
-        background: #111b21;
+        background: #1d1f1f;
         border-radius: 4px;
         padding: 1px 4px;
       }
+
       #notes hr {
         border: none;
         border-top: 1px solid #2a3942;
         margin: 14px 0;
       }
+
       .actions {
         display: flex;
         justify-content: flex-end;
         margin-top: 16px;
       }
+
       button {
         background: #00a884;
-        color: #111b21;
+        color: #1d1f1f;
         border: none;
         border-radius: 6px;
         padding: 8px 14px;
@@ -83,6 +95,7 @@
       }
     </style>
   </head>
+
   <body>
     <h1 id="heading"></h1>
     <p id="subheading"></p>

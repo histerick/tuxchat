@@ -1,8 +1,8 @@
-'use strict';
+"use strict";
 
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer } = require("electron");
 
-contextBridge.exposeInMainWorld('deleteSessionDialog', {
-  listDeletable: () => ipcRenderer.invoke('sessions:list-deletable'),
-  remove: (desktopId) => ipcRenderer.invoke('sessions:delete', desktopId),
+contextBridge.exposeInMainWorld("deleteSessionDialog", {
+  listDeletable: () => ipcRenderer.invoke("sessions:list-deletable"),
+  remove: (desktopId) => ipcRenderer.invoke("sessions:delete", desktopId),
 });

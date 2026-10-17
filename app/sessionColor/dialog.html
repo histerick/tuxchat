@@ -1,74 +1,522 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
-    <title></title>
+    <title>Cor da Sessão</title>
     <style>
+      :root {
+        --bg: #202c33;
+        --card-bg: #202c33;
+        --input-bg: #111b21;
+        --border: #2a3942;
+        --whatsapp-green: #00a884;
+        --whatsapp-green-hover: #06cf9c;
+        --danger: #f15c6d;
+        --text-primary: #e9edef;
+        --text-secondary: #8696a0;
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      html,
       body {
         margin: 0;
-        font-family: sans-serif;
-        background: #111b21;
-        color: #e9edef;
-        padding: 16px;
-        box-sizing: border-box;
+        padding: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text-primary);
+        font:
+          13px system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        user-select: none;
+        overflow: hidden;
+        border-radius: 12px;
+      }
+      .modal-card {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+      }
+      .modal-header {
+        padding: 14px 18px 12px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        -webkit-app-region: drag;
+      }
+      .modal-title-group {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .modal-title {
         font-size: 16px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
-      h1 {
-        font-size: 18px;
-        font-weight: normal;
-        margin: 0 0 4px;
+      .modal-title-icon {
+        color: var(--whatsapp-green);
+        display: flex;
+        align-items: center;
       }
-      #hint {
-        font-size: 13px;
-        color: #8696a0;
-        margin: 0 0 16px;
+      .modal-subtitle {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin: 0;
+      }
+      .modal-close-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+        transition:
+          background-color 0.15s,
+          color 0.15s;
+      }
+      .modal-close-btn:hover {
+        background: #2a3942;
+        color: var(--text-primary);
+      }
+      .modal-body {
+        padding: 14px 18px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        overflow: hidden;
+      }
+      .swatches-wrapper {
+        background: var(--input-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 14px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .section-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
       }
       #swatches {
         display: grid;
         grid-template-columns: repeat(9, 1fr);
         gap: 8px;
+        align-items: center;
       }
       .swatch {
-        aspect-ratio: 1;
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
         border: 2px solid transparent;
         padding: 0;
         cursor: pointer;
         outline: none;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+          box-shadow 0.15s,
+          border-color 0.15s;
+      }
+      .swatch:hover {
+        transform: scale(1.15);
       }
       .swatch:focus-visible {
-        box-shadow: 0 0 0 2px #8696a0;
+        box-shadow: 0 0 0 2px var(--whatsapp-green);
       }
-      .swatch[aria-checked='true'] {
-        border-color: #e9edef;
+      .swatch[aria-checked="true"] {
+        border-color: #ffffff;
+        box-shadow:
+          0 0 0 2px var(--whatsapp-green),
+          0 3px 8px rgba(0, 0, 0, 0.4);
+        transform: scale(1.08);
+      }
+      .swatch[aria-checked="true"]::after {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #ffffff;
       }
       .swatch.none {
         background: #202c33;
-        background-image: linear-gradient(135deg, transparent 45%, #8696a0 45%, #8696a0 55%, transparent 55%);
+        border: 1px dashed var(--border);
       }
-      .actions {
+      .swatch.none svg {
+        color: var(--text-secondary);
+      }
+      .swatch.none[aria-checked="true"] {
+        border: 2px solid #ffffff;
+      }
+      .swatch.none[aria-checked="true"]::after {
+        display: none;
+      }
+      .swatch.none[aria-checked="true"] svg {
+        color: var(--whatsapp-green);
+      }
+
+      /* Custom Color Card */
+      .custom-color-card {
+        background: var(--input-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 14px;
         display: flex;
-        justify-content: flex-end;
-        margin-top: 20px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        transition:
+          border-color 0.18s ease,
+          box-shadow 0.18s ease;
       }
-      button#close {
-        background: #00a884;
+      .custom-color-card.active {
+        border-color: var(--whatsapp-green);
+        box-shadow: 0 0 0 1px var(--whatsapp-green);
+      }
+      .custom-color-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+      .color-picker-trigger {
+        position: relative;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        cursor: pointer;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .visually-hidden-picker {
+        position: absolute;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        cursor: pointer;
+        padding: 0;
+        border: none;
+        margin: 0;
+      }
+      .color-picker-preview {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: var(--whatsapp-green);
+        border: 2px solid rgba(255, 255, 255, 0.25);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+        transition:
+          transform 0.15s ease,
+          box-shadow 0.15s ease,
+          border-color 0.15s ease;
+        pointer-events: none;
+      }
+      .color-picker-trigger:hover .color-picker-preview {
+        transform: scale(1.08);
+        border-color: #ffffff;
+        box-shadow: 0 0 10px rgba(0, 168, 132, 0.4);
+      }
+      .color-picker-icon-badge {
+        position: absolute;
+        bottom: -2px;
+        right: -2px;
+        width: 17px;
+        height: 17px;
+        border-radius: 50%;
+        background: #111b21;
+        border: 1.5px solid var(--border);
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        transition:
+          color 0.15s,
+          border-color 0.15s;
+      }
+      .color-picker-trigger:hover .color-picker-icon-badge {
+        color: var(--whatsapp-green);
+        border-color: var(--whatsapp-green);
+      }
+      .custom-color-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .custom-color-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+      }
+      .custom-color-desc {
+        font-size: 11px;
+        color: var(--text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .hex-input-group {
+        display: flex;
+        align-items: center;
+        background: #202c33;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0 10px;
+        width: 110px;
+        height: 36px;
+        flex-shrink: 0;
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+      }
+      .hex-input-group:focus-within {
+        border-color: var(--whatsapp-green);
+        box-shadow: 0 0 0 1px var(--whatsapp-green);
+      }
+      .hex-prefix {
+        color: var(--text-secondary);
+        font-family:
+          ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+        font-size: 14px;
+        font-weight: 700;
+        user-select: none;
+        margin-right: 3px;
+      }
+      .hex-input {
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--text-primary);
+        font-family:
+          ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        width: 100%;
+        padding: 0;
+      }
+      .hex-input::placeholder {
+        color: #53636c;
+        text-transform: uppercase;
+      }
+
+      /* Color status */
+      .color-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        padding: 0 2px;
+      }
+      .color-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: var(--text-secondary);
+        display: inline-block;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      }
+      .color-status-name {
+        color: var(--text-primary);
+        font-weight: 600;
+        font-family:
+          ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      }
+      .modal-footer {
+        padding: 12px 18px;
+        background: #182229;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+      }
+      .btn-primary {
+        background: var(--whatsapp-green);
         color: #111b21;
         border: none;
-        border-radius: 6px;
-        padding: 8px 14px;
-        font-size: 16px;
+        border-radius: 8px;
+        padding: 8px 18px;
+        font-size: 13px;
+        font-weight: 700;
         cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 2px 8px rgba(0, 168, 132, 0.3);
+        transition:
+          background-color 0.15s,
+          transform 0.1s;
+      }
+      .btn-primary:hover {
+        background: var(--whatsapp-green-hover);
+        transform: translateY(-1px);
       }
     </style>
   </head>
   <body>
-    <h1 id="heading"></h1>
-    <p id="hint"></p>
-    <div id="swatches" role="radiogroup"></div>
-    <div class="actions">
-      <button id="close"></button>
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h2 id="heading" class="modal-title">
+            <span class="modal-title-icon">
+              <svg
+                width="17"
+                height="17"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+              >
+                <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle>
+                <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle>
+                <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle>
+                <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle>
+                <path
+                  d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.563-2.512 5.563-5.563C22 6.5 17.5 2 12 2z"
+                ></path>
+              </svg>
+            </span>
+            Cor da Sessão
+          </h2>
+          <p id="hint" class="modal-subtitle">
+            Personaliza a cor da barra de título e do ícone desta conta.
+          </p>
+        </div>
+        <button
+          type="button"
+          id="modal-close-btn"
+          class="modal-close-btn"
+          aria-label="Fechar"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="swatches-wrapper">
+          <span id="swatches-label" class="section-label">Paleta de cores</span>
+          <div id="swatches" role="radiogroup"></div>
+        </div>
+
+        <div class="custom-color-card" id="custom-color-card">
+          <div class="custom-color-left">
+            <label
+              class="color-picker-trigger"
+              id="color-picker-trigger"
+              title="Abrir seletor de cores"
+            >
+              <input
+                type="color"
+                id="native-color-picker"
+                class="visually-hidden-picker"
+                value="#00a884"
+              />
+              <div class="color-picker-preview" id="custom-color-preview"></div>
+              <div class="color-picker-icon-badge">
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.563-2.512 5.563-5.563C22 6.5 17.5 2 12 2z"
+                  ></path>
+                </svg>
+              </div>
+            </label>
+            <div class="custom-color-info">
+              <span id="custom-color-title" class="custom-color-title"
+                >Cor personalizada</span
+              >
+              <span id="custom-color-desc" class="custom-color-desc"
+                >Seletor de cores ou código HEX</span
+              >
+            </div>
+          </div>
+
+          <div class="hex-input-group">
+            <span class="hex-prefix">#</span>
+            <input
+              type="text"
+              id="hex-input"
+              class="hex-input"
+              maxlength="6"
+              placeholder="00A884"
+              spellcheck="false"
+              autocomplete="off"
+            />
+          </div>
+        </div>
+
+        <div class="color-status">
+          <span id="color-dot" class="color-dot"></span>
+          <span
+            ><span id="color-status-label">Cor selecionada:</span>
+            <span id="color-name" class="color-status-name">Padrão</span></span
+          >
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="close" class="btn-primary">Concluir</button>
+      </div>
     </div>
+
     <script src="../i18n/renderer-strings.js"></script>
     <script src="dialog.js"></script>
   </body>

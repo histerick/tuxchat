@@ -1,31 +1,62 @@
-'use strict';
+"use strict";
 
-const { app } = require('electron');
-const { es, en } = require('./strings');
+const { app } = require("electron");
+const fs = require("node:fs");
+const path = require("node:path");
+const { es, en, pt } = require("./strings");
 
-// US English by default; Latin American Spanish only when the OS locale
-// itself is Spanish. Anything else (fr, de, pt, ...) also falls back to
-// English rather than guessing — matches how most desktop apps behave
-// when they don't ship a translation for the exact system locale.
-function detectLocale() {
+const SETTINGS_FILE = path.join(app.getPath("userData"), "settings.json");
+
+function getSavedLocale() {
   try {
-    return app.getLocale().toLowerCase().startsWith('es') ? 'es' : 'en';
+    if (fs.existsSync(SETTINGS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf8"));
+      if (data && ["en", "es", "pt"].includes(data.locale)) {
+        return data.locale;
+      }
+    }
   } catch {
-    return 'en';
+    //
   }
+  return null;
 }
 
-// Locale is resolved once per process and doesn't change at runtime (no
-// in-app language switcher), so memoizing avoids re-parsing app.getLocale()
-// on every t() call.
 let cachedLocale = null;
+
 function currentLocale() {
-  if (!cachedLocale) cachedLocale = detectLocale();
+  if (!cachedLocale) {
+    const saved = getSavedLocale();
+    // Default to 'en' when installed / no preference saved
+    cachedLocale = saved || "en";
+  }
   return cachedLocale;
 }
 
+function setLocale(newLocale) {
+  if (!["en", "es", "pt"].includes(newLocale)) return;
+  cachedLocale = newLocale;
+  try {
+    fs.mkdirSync(app.getPath("userData"), { recursive: true });
+    let data = {};
+    if (fs.existsSync(SETTINGS_FILE)) {
+      try {
+        data = JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf8")) || {};
+      } catch {
+        data = {};
+      }
+    }
+    data.locale = newLocale;
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2), "utf8");
+  } catch (err) {
+    console.error("Failed to save settings.json:", err);
+  }
+}
+
 function dict() {
-  return currentLocale() === 'es' ? es : en;
+  const loc = currentLocale();
+  if (loc === "pt") return pt;
+  if (loc === "es") return es;
+  return en;
 }
 
 // Dot-path lookup, e.g. t('menu.addSession') or, for parametrized strings,
@@ -34,11 +65,11 @@ function dict() {
 // dialog.
 function t(keyPath, ...args) {
   let value = dict();
-  for (const part of keyPath.split('.')) {
+  for (const part of keyPath.split(".")) {
     value = value && value[part];
   }
-  if (typeof value === 'function') return value(...args);
+  if (typeof value === "function") return value(...args);
   return value == null ? keyPath : value;
 }
 
-module.exports = { t, currentLocale };
+module.exports = { t, currentLocale, setLocale };

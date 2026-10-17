@@ -1,10 +1,10 @@
-'use strict';
+"use strict";
 
-const fs = require('node:fs');
-const path = require('node:path');
-const { app, BrowserWindow } = require('electron');
-const { autoUpdater } = require('electron-updater');
-const { currentLocale } = require('../i18n');
+const fs = require("node:fs");
+const path = require("node:path");
+const { app, BrowserWindow } = require("electron");
+const { autoUpdater } = require("electron-updater");
+const { currentLocale } = require("../i18n");
 
 // electron-updater's Linux auto-download/auto-install only works for the
 // AppImage target (it replaces the running AppImage file in place). The
@@ -17,7 +17,7 @@ function isAppImage() {
 }
 
 function pendingUpdatePath() {
-  return path.join(app.getPath('userData'), 'pending-update.json');
+  return path.join(app.getPath("userData"), "pending-update.json");
 }
 
 // GitHub release notes come back as a markdown string for a single
@@ -25,9 +25,11 @@ function pendingUpdatePath() {
 // several intermediate releases into one update. Flattened to one string
 // either way, since the changelog window just displays plain text.
 function normalizeReleaseNotes(releaseNotes) {
-  if (!releaseNotes) return '';
-  if (typeof releaseNotes === 'string') return releaseNotes;
-  return releaseNotes.map((entry) => `${entry.version}\n${entry.note || ''}`).join('\n\n');
+  if (!releaseNotes) return "";
+  if (typeof releaseNotes === "string") return releaseNotes;
+  return releaseNotes
+    .map((entry) => `${entry.version}\n${entry.note || ""}`)
+    .join("\n\n");
 }
 
 function openChangelogWindow({ version, releaseName, releaseNotes }) {
@@ -38,16 +40,22 @@ function openChangelogWindow({ version, releaseName, releaseNotes }) {
     minimizable: true,
     maximizable: false,
     webPreferences: {
-      preload: path.join(__dirname, 'changelog-dialog-preload.js'),
+      preload: path.join(__dirname, "changelog-dialog-preload.js"),
       contextIsolation: true,
       sandbox: true,
     },
   });
   win.setMenuBarVisibility(false);
-  win.webContents.once('did-finish-load', () => {
-    win.webContents.send('updater:notes', { version, releaseName, releaseNotes });
+  win.webContents.once("did-finish-load", () => {
+    win.webContents.send("updater:notes", {
+      version,
+      releaseName,
+      releaseNotes,
+    });
   });
-  win.loadFile(path.join(__dirname, 'changelog-dialog.html'), { query: { locale: currentLocale() } });
+  win.loadFile(path.join(__dirname, "changelog-dialog.html"), {
+    query: { locale: currentLocale() },
+  });
   return win;
 }
 
@@ -61,7 +69,7 @@ function showChangelogIfJustUpdated() {
   const notesPath = pendingUpdatePath();
   let pending;
   try {
-    pending = JSON.parse(fs.readFileSync(notesPath, 'utf8'));
+    pending = JSON.parse(fs.readFileSync(notesPath, "utf8"));
   } catch {
     return;
   }
@@ -86,7 +94,10 @@ function persistPendingUpdate(info) {
     fs.mkdirSync(path.dirname(pendingUpdatePath()), { recursive: true });
     fs.writeFileSync(pendingUpdatePath(), JSON.stringify(payload));
   } catch (err) {
-    console.error('TuxChat updater: no se pudo guardar la nota de la versión descargada:', err);
+    console.error(
+      "TuxChat updater: no se pudo guardar la nota de la versión descargada:",
+      err,
+    );
   }
 }
 
@@ -99,11 +110,11 @@ function startBackgroundChecks() {
   // a forced restart.
   autoUpdater.autoInstallOnAppQuit = true;
 
-  autoUpdater.on('update-downloaded', persistPendingUpdate);
+  autoUpdater.on("update-downloaded", persistPendingUpdate);
   // Update checks are best-effort background noise: no network, GitHub
   // hiccup, or rate limit should ever surface to the user.
-  autoUpdater.on('error', (err) => {
-    console.error('TuxChat updater:', err && err.message ? err.message : err);
+  autoUpdater.on("error", (err) => {
+    console.error("TuxChat updater:", err && err.message ? err.message : err);
   });
 
   const check = () => autoUpdater.checkForUpdates().catch(() => {});
@@ -116,7 +127,7 @@ function startBackgroundChecks() {
 // installed binary — running the updater in each of them would mean up to
 // MAX_SESSIONS redundant downloads racing to write the same AppImage file.
 function initUpdater(config) {
-  if (!app.isPackaged || !isAppImage() || config.profileName !== '') return;
+  if (!app.isPackaged || !isAppImage() || config.profileName !== "") return;
 
   showChangelogIfJustUpdated();
   startBackgroundChecks();

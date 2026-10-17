@@ -1,21 +1,22 @@
-const LOCALE = new URLSearchParams(location.search).get('locale') === 'es' ? 'es' : 'en';
+const LOCALE =
+  new URLSearchParams(location.search).get("locale") === "es" ? "es" : "en";
 const L = window.TUXCHAT_STRINGS[LOCALE].deleteDialog;
 
 document.documentElement.lang = LOCALE;
 document.title = L.windowTitle;
-document.getElementById('heading').textContent = L.heading;
-document.getElementById('description').textContent = L.description;
-document.getElementById('empty').textContent = L.empty;
-document.getElementById('select-mode').textContent = L.select;
-document.getElementById('cancel-select').textContent = L.cancel;
-document.getElementById('do-delete').textContent = L.delete;
+document.getElementById("heading").textContent = L.heading;
+document.getElementById("description").textContent = L.description;
+document.getElementById("empty").textContent = L.empty;
+document.getElementById("select-mode").textContent = L.select;
+document.getElementById("cancel-select").textContent = L.cancel;
+document.getElementById("do-delete").textContent = L.delete;
 
-const listEl = document.getElementById('list');
-const emptyEl = document.getElementById('empty');
-const errorEl = document.getElementById('error');
-const selectModeBtn = document.getElementById('select-mode');
-const cancelSelectBtn = document.getElementById('cancel-select');
-const doDeleteBtn = document.getElementById('do-delete');
+const listEl = document.getElementById("list");
+const emptyEl = document.getElementById("empty");
+const errorEl = document.getElementById("error");
+const selectModeBtn = document.getElementById("select-mode");
+const cancelSelectBtn = document.getElementById("cancel-select");
+const doDeleteBtn = document.getElementById("do-delete");
 
 let sessions = [];
 let selecting = false;
@@ -30,24 +31,26 @@ function clearError() {
 }
 
 function checkedDesktopIds() {
-  return Array.from(listEl.querySelectorAll('input[type="checkbox"]:checked')).map((el) => el.dataset.desktopId);
+  return Array.from(
+    listEl.querySelectorAll('input[type="checkbox"]:checked'),
+  ).map((el) => el.dataset.desktopId);
 }
 
 function renderList() {
-  listEl.innerHTML = '';
+  listEl.innerHTML = "";
   for (const item of sessions) {
-    const row = document.createElement('div');
-    row.className = 'session-row';
+    const row = document.createElement("div");
+    row.className = "session-row";
 
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
     checkbox.hidden = !selecting;
     checkbox.dataset.desktopId = item.desktopId;
-    checkbox.addEventListener('change', () => {
+    checkbox.addEventListener("change", () => {
       doDeleteBtn.disabled = checkedDesktopIds().length === 0;
     });
 
-    const name = document.createElement('span');
+    const name = document.createElement("span");
     name.textContent = item.profileName;
 
     row.appendChild(checkbox);
@@ -74,19 +77,19 @@ async function loadSessions() {
   render();
 }
 
-selectModeBtn.addEventListener('click', () => {
+selectModeBtn.addEventListener("click", () => {
   clearError();
   selecting = true;
   render();
 });
 
-cancelSelectBtn.addEventListener('click', () => {
+cancelSelectBtn.addEventListener("click", () => {
   clearError();
   selecting = false;
   render();
 });
 
-doDeleteBtn.addEventListener('click', async () => {
+doDeleteBtn.addEventListener("click", async () => {
   const desktopIds = checkedDesktopIds();
   if (desktopIds.length === 0) return;
 
@@ -101,7 +104,7 @@ doDeleteBtn.addEventListener('click', async () => {
   selecting = false;
   await loadSessions();
 
-  if (errors.length > 0) showError(errors.join(' '));
+  if (errors.length > 0) showError(errors.join(" "));
 });
 
 loadSessions();

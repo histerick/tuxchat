@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Excluir Sessão</title>
+    <style>
+      :root {
+        --bg: #202c33;
+        --card-bg: #202c33;
+        --input-bg: #1d1f1f;
+        --border: #2a3942;
+        --danger: #f15c6d;
+        --danger-hover: #ff6b7d;
+        --text-primary: #e9edef;
+        --text-secondary: #8696a0;
+        --whatsapp-green: #00a884;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text-primary);
+        font:
+          13px system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        user-select: none;
+        overflow: hidden;
+        border-radius: 12px;
+      }
+
+      .modal-card {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+      }
+
+      .modal-header {
+        padding: 14px 18px 12px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        -webkit-app-region: drag;
+      }
+
+      .modal-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .modal-title-icon {
+        color: var(--danger);
+        display: flex;
+        align-items: center;
+      }
+
+      .modal-close-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+        transition:
+          background-color 0.15s,
+          color 0.15s;
+      }
+
+      .modal-close-btn:hover {
+        background: #2a3942;
+        color: var(--text-primary);
+      }
+
+      .modal-body {
+        padding: 16px 18px 20px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        overflow: hidden;
+      }
+
+      .session-preview-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--input-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 14px;
+      }
+
+      .session-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: #202c33;
+        border: 1.5px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+
+      .session-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .session-avatar .initials {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--whatsapp-green);
+      }
+
+      .session-info {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .session-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .session-subtext {
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+
+      .warning-box {
+        background: rgba(241, 92, 109, 0.08);
+        border: 1px solid rgba(241, 92, 109, 0.25);
+        border-radius: 8px;
+        padding: 10px 12px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .warning-icon {
+        color: var(--danger);
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+
+      .warning-text {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--text-secondary);
+      }
+
+      .error-msg {
+        color: var(--danger);
+        font-size: 12px;
+      }
+
+      .modal-footer {
+        padding: 12px 18px;
+        background: #182229;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .btn-secondary {
+        background: transparent;
+        color: var(--text-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition:
+          background-color 0.15s,
+          color 0.15s,
+          border-color 0.15s;
+      }
+
+      .btn-secondary:hover {
+        background: #202c33;
+        color: var(--text-primary);
+        border-color: #3b4a54;
+      }
+
+      .btn-danger {
+        background: var(--danger);
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 2px 8px rgba(241, 92, 109, 0.25);
+        transition:
+          background-color 0.15s,
+          transform 0.1s;
+      }
+
+      .btn-danger:hover {
+        background: var(--danger-hover);
+        transform: translateY(-1px);
+      }
+
+      .btn-danger:disabled {
+        opacity: 0.5;
+        cursor: default;
+        transform: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">
+          <span class="modal-title-icon">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+            >
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path
+                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+              ></path>
+            </svg>
+          </span>
+          <span id="delete-title-text">Excluir Sessão</span>
+        </h2>
+        <button
+          type="button"
+          id="delete-close-btn"
+          class="modal-close-btn"
+          aria-label="Fechar"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="session-preview-card">
+          <div id="delete-avatar-container" class="session-avatar">
+            <img id="delete-avatar-img" alt="Foto da sessão" hidden />
+            <span id="delete-avatar-initials" class="initials">S</span>
+          </div>
+          <div class="session-info">
+            <span id="delete-session-name" class="session-name">Sessão</span>
+            <span id="delete-session-subtext" class="session-subtext"
+              >Sessão adicional do TuxChat</span
+            >
+          </div>
+        </div>
+
+        <div class="warning-box">
+          <svg
+            class="warning-icon"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+            ></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <p id="delete-warning-text" class="warning-text">
+            O login e todos os dados locais desta sessão serão apagados
+            permanentemente desta máquina.
+          </p>
+        </div>
+
+        <span id="delete-error" class="error-msg" hidden></span>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="delete-cancel-btn" class="btn-secondary">
+          Cancelar
+        </button>
+        <button type="button" id="delete-confirm-btn" class="btn-danger">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path
+              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+            ></path>
+          </svg>
+          <span id="delete-confirm-btn-text">Excluir sessão</span>
+        </button>
+      </div>
+    </div>
+
+    <script src="../i18n/renderer-strings.js"></script>
+    <script src="delete-modal.js"></script>
+  </body>
+</html>

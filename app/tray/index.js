@@ -1,25 +1,25 @@
-'use strict';
+"use strict";
 
-const { Tray, Menu, app, nativeImage } = require('electron');
-const fs = require('node:fs');
-const { t } = require('../i18n');
+const { Tray, Menu, app, nativeImage } = require("electron");
+const fs = require("node:fs");
+const { t } = require("../i18n");
 
 function buildTrayMenu(mainWindow, appName) {
   return Menu.buildFromTemplate([
     // Not clickable: just labels which session this tray icon belongs to,
     // so it's visible without having to hover for the tooltip.
     { label: appName, enabled: false },
-    { type: 'separator' },
+    { type: "separator" },
     {
-      label: t('tray.show'),
+      label: t("tray.show"),
       click: () => {
         mainWindow.show();
         mainWindow.focus();
       },
     },
-    { type: 'separator' },
+    { type: "separator" },
     {
-      label: t('menu.quit'),
+      label: t("menu.quit"),
       click: () => {
         app.isQuitting = true;
         app.quit();
@@ -35,12 +35,14 @@ function createTray(mainWindow, config) {
   // it in that callback (menu setup, session self-context registration)
   // with no visible error to the user. A missing icon should mean "no
   // tray icon", not "half the app failed to start" — fall back instead.
-  const icon = fs.existsSync(config.appIcon) ? config.appIcon : nativeImage.createEmpty();
+  const icon = fs.existsSync(config.appIcon)
+    ? config.appIcon
+    : nativeImage.createEmpty();
   const tray = new Tray(icon);
   tray.setToolTip(config.appName);
   tray.setContextMenu(buildTrayMenu(mainWindow, config.appName));
 
-  tray.on('click', () => {
+  tray.on("click", () => {
     if (mainWindow.isVisible()) {
       mainWindow.hide();
     } else {
