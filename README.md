@@ -71,6 +71,10 @@ default browser — as a new tab if it's already open — instead of in a
 TuxChat popup window. Right-click a link to **Copy link** and paste it
 wherever you want.
 
+WhatsApp links inside a chat (`wa.me/<number>`, `api.whatsapp.com/send`,
+`whatsapp://`) are the exception: they open that chat right there, in the
+same session, without going through the browser.
+
 ## Development
 
 ```bash
@@ -80,3 +84,7 @@ npm start
 
 The detailed development log lives outside this repo while the project
 matures; see `tuxchat.md` on the development machine.
+
+## Acknowledgements
+
+Thanks to **Pedro Henrique ([@pedruhb](https://github.com/pedruhb))** for finding and proposing the fix for the WhatsApp link-opening bug (#1).

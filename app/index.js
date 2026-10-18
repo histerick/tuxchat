@@ -5,7 +5,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { app, BrowserWindow, session } = require('electron');
 const { getConfig } = require('./config');
-const { createMainWindow, getWhatsAppContents } = require('./mainWindow');
+const { createMainWindow, openChat } = require('./mainWindow');
 const { registerPermissionHandlers } = require('./permissions');
 const { registerScreenSharing } = require('./screenSharing');
 const { createTray } = require('./tray');
@@ -165,7 +165,7 @@ if (needsX11Relaunch) {
       const deepLink = extractDeepLinkArg(argv);
       if (deepLink) {
         const translated = translateToWebUrl(deepLink);
-        if (translated) getWhatsAppContents().loadURL(translated);
+        if (translated) openChat(translated);
       }
 
       if (win.isMinimized()) win.restore();

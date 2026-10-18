@@ -73,6 +73,10 @@ web) se abren en tu navegador predeterminado — como pestaña nueva si ya
 está abierto — en vez de en una ventana emergente de TuxChat. Con clic
 derecho sobre un enlace podés **Copiar enlace** y pegarlo donde quieras.
 
+La excepción son los enlaces de WhatsApp dentro de un chat
+(`wa.me/<numero>`, `api.whatsapp.com/send`, `whatsapp://`): abren ese chat
+ahí mismo, en la misma sesión, sin pasar por el navegador.
+
 ## Desarrollo
 
 ```bash
@@ -82,3 +86,7 @@ npm start
 
 La bitácora de desarrollo detallada vive fuera de este repo mientras el
 proyecto madura; ver `tuxchat.md` en el equipo de desarrollo.
+
+## Agradecimientos
+
+A **Pedro Henrique ([@pedruhb](https://github.com/pedruhb))** por detectar y proponer la corrección del bug de apertura de links de WhatsApp (#1).

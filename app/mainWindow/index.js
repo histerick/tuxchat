@@ -3,6 +3,7 @@
 const { app, BrowserWindow, Menu, WebContentsView, clipboard, session, shell } = require('electron');
 const path = require('node:path');
 const { t } = require('../i18n');
+const { isWhatsAppLink, translateToWebUrl } = require('../deepLinks/translate');
 const titlebar = require('./titlebar');
 
 // WhatsApp Web rejects Electron's default UA ("... Electron/44.4.3 ...")
@@ -29,6 +30,18 @@ function openExternally(url) {
   });
 }
 
+// WhatsApp links inside a chat (wa.me, api.whatsapp.com/send,
+// whatsapp://) open that chat right here, in this same session. Sent to
+// the browser like any other link, they bounced back as whatsapp:// to
+// the router and its picker, opening the link a second time — found by
+// Pedro Henrique (@pedruhb) in PR #1.
+function openInSession(url) {
+  const webUrl = isWhatsAppLink(url) && translateToWebUrl(url);
+  if (!webUrl) return false;
+  openChat(webUrl);
+  return true;
+}
+
 // Links in chats (Zoom, Meet, anything with target="_blank") would
 // otherwise open as a bare Electron popup sharing this session. Send them
 // to the user's default browser instead — which, if it's already running,
@@ -37,7 +50,7 @@ function routeExternalLinks(contents, appUrl) {
   const appOrigin = new URL(appUrl).origin;
 
   contents.setWindowOpenHandler(({ url }) => {
-    openExternally(url);
+    if (!openInSession(url)) openExternally(url);
     return { action: 'deny' };
   });
 
@@ -52,7 +65,7 @@ function routeExternalLinks(contents, appUrl) {
     }
     if (origin === appOrigin) return;
     event.preventDefault();
-    openExternally(url);
+    if (!openInSession(url)) openExternally(url);
   });
 }
 
@@ -77,6 +90,33 @@ let whatsappContents = null;
 // title bar, not the page.
 function getWhatsAppContents() {
   return whatsappContents;
+}
+
+// Opens a web.whatsapp.com/send URL (see deepLinks/translate) in this
+// session. loadURL() reloads all of WhatsApp Web, which takes a while;
+// clicking a link to it from inside the page lets WhatsApp's own router
+// open the chat instead, as PR #1 proposed. If WhatsApp ever stops
+// handling that click, it's just an ordinary same-origin navigation, so
+// it still lands in the right chat, only with the full reload. The URL
+// goes in through JSON.stringify, never pasted into the script by hand:
+// its text comes from a link someone else wrote. While the page is
+// still loading there's no router to click through yet.
+function openChat(webUrl) {
+  const contents = whatsappContents;
+  if (!contents) return;
+  if (contents.isLoading() || !contents.getURL().startsWith('https://web.whatsapp.com/')) {
+    contents.loadURL(webUrl);
+    return;
+  }
+  const script = `(() => {
+    const link = document.createElement('a');
+    link.href = ${JSON.stringify(webUrl)};
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  })();`;
+  contents.executeJavaScript(script).catch(() => contents.loadURL(webUrl));
 }
 
 function createMainWindow(config) {
@@ -167,4 +207,4 @@ function createMainWindow(config) {
   return win;
 }
 
-module.exports = { createMainWindow, getWhatsAppContents };
+module.exports = { createMainWindow, getWhatsAppContents, openChat };
