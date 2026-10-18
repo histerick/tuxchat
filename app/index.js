@@ -128,7 +128,6 @@ if (needsX11Relaunch) {
     });
 } else {
   const config = getConfig();
-  initLogger(config.profileName || 'principal');
 
   // A whatsapp:// link forwarded from the router (see deepLinks/forward.js)
   // arrives as a plain argv item, same on cold start as in second-instance
@@ -145,6 +144,13 @@ if (needsX11Relaunch) {
   }
 
   app.setName(config.appName);
+
+  // Only after setName: the main session (no --user-data-dir) gets its
+  // userData dir from the app name the first time anything asks for it,
+  // and initLogger does. Called earlier, it resolved to package.json's
+  // lowercase "tuxchat" instead of "TuxChat" — a different, empty
+  // profile, which logged the main session out (shipped in 0.2.10).
+  initLogger(config.profileName || 'principal');
 
   // Confirmed live: Electron ignores --class and derives the window's
   // WM_CLASS (X11) / app_id (Wayland) from the desktop name instead —
