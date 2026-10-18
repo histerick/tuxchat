@@ -9,6 +9,7 @@ const nodeGlobals = {
   URL: 'readonly',
   URLSearchParams: 'readonly',
   setTimeout: 'readonly',
+  clearTimeout: 'readonly',
   setInterval: 'readonly',
 };
 

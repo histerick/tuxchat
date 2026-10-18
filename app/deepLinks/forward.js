@@ -2,8 +2,12 @@
 
 const { app } = require('electron');
 const path = require('node:path');
-const { execFile } = require('node:child_process');
+const { spawn } = require('node:child_process');
 const { listDeletableSessions } = require('../sessions');
+
+// How long the router keeps an eye on a session it just launched (see
+// watchLaunch below).
+const WATCH_MS = 5000;
 
 // Reuses the exact same launch shape sessions/index.js's buildLauncherScript
 // generates, but spawned directly instead of via a persisted .sh file —
@@ -31,9 +35,56 @@ function launchArgsFor(desktopId) {
   };
 }
 
+// The launched session never reports back, so one that died on startup
+// used to vanish without a trace: the link just never opened. Watched for
+// a few seconds instead, an early failure lands in the router's log.
+// Exiting 0 is the normal outcome when the session was already running —
+// it hands the link to that instance and quits (see app/index.js).
+function watchLaunch(child, desktopId) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.info(`La sesión ${desktopId} sigue abriéndose con el enlace.`);
+      finish(true);
+    }, WATCH_MS);
+    function finish(ok) {
+      clearTimeout(timer);
+      child.removeAllListeners();
+      child.unref();
+      resolve(ok);
+    }
+    child.on('error', (err) => {
+      console.error(`No se pudo lanzar la sesión ${desktopId}:`, err);
+      finish(false);
+    });
+    child.on('exit', (code, signal) => {
+      if (code === 0) {
+        console.info(`Enlace entregado a la sesión ${desktopId}, que ya estaba abierta.`);
+        finish(true);
+        return;
+      }
+      console.error(`La sesión ${desktopId} terminó al arrancar (código ${code}, señal ${signal}).`);
+      finish(false);
+    });
+  });
+}
+
+// Resolves once the launch looks settled (see watchLaunch), so the router
+// stays alive until then instead of quitting right after spawning.
 function forwardToSession(desktopId, whatsappUrl) {
   const launch = launchArgsFor(desktopId);
-  if (!launch) return false;
+  if (!launch) {
+    console.error(`No existe la sesión ${desktopId} para abrir el enlace.`);
+    return Promise.resolve(false);
+  }
+
+  // Not process.execPath under an AppImage, same as buildLauncherScript():
+  // that's the binary inside this router's own temporary mount. Run bare
+  // like that, it misses the --no-sandbox the AppImage's AppRun adds, and
+  // Chromium aborts on a chrome-sandbox that can't be setuid inside the
+  // image — confirmed live on 2026-10-18: links picked for any session
+  // never opened. The mount also goes away as soon as the router exits.
+  // process.env.APPIMAGE goes through AppRun and mounts its own copy.
+  const executable = process.env.APPIMAGE || process.execPath;
 
   const args = [];
   if (!app.isPackaged) args.push(app.getAppPath());
@@ -46,12 +97,12 @@ function forwardToSession(desktopId, whatsappUrl) {
   if (launch.profileName) args.push(`--profile-name=${launch.profileName}`);
   args.push(whatsappUrl);
 
-  // execFile with an argv array, never a shell string: whatsappUrl comes
+  // spawn with an argv array, never a shell string: whatsappUrl comes
   // from an external link a user clicked, so it has to reach the child
   // process as a single opaque argument, not get shell-interpreted.
-  const child = execFile(process.execPath, args, { detached: true, stdio: 'ignore' });
-  child.unref();
-  return true;
+  console.info(`Enviando el enlace a la sesión ${desktopId}.`);
+  const child = spawn(executable, args, { detached: true, stdio: 'ignore' });
+  return watchLaunch(child, desktopId);
 }
 
 module.exports = { forwardToSession };

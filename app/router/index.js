@@ -26,20 +26,25 @@ function run(argv) {
   const rememberedStillExists = remembered && sessions.some((s) => s.desktopId === remembered);
 
   if (rememberedStillExists) {
-    forwardToSession(remembered, whatsappUrl);
-    app.quit();
+    forwardAndQuit(remembered, whatsappUrl);
     return;
   }
 
   // Nothing to choose between: skip the picker entirely rather than
   // asking to confirm the only possible answer.
   if (sessions.length <= 1) {
-    if (sessions[0]) forwardToSession(sessions[0].desktopId, whatsappUrl);
-    app.quit();
+    if (sessions[0]) forwardAndQuit(sessions[0].desktopId, whatsappUrl);
+    else app.quit();
     return;
   }
 
   openPicker(sessions, whatsappUrl);
+}
+
+// Stays alive until forwardToSession has watched the launch, so a session
+// that fails to start still gets logged (see deepLinks/forward.js).
+function forwardAndQuit(desktopId, whatsappUrl) {
+  return forwardToSession(desktopId, whatsappUrl).finally(() => app.quit());
 }
 
 function openPicker(sessions, whatsappUrl) {
@@ -63,12 +68,18 @@ function openPicker(sessions, whatsappUrl) {
   });
 
   // Closing without choosing (cancel) just drops the link — same as
-  // dismissing Windows' own app picker without picking anything.
-  win.on('closed', () => app.quit());
+  // dismissing Windows' own app picker without picking anything. After a
+  // choice, forwardAndQuit quits instead, once the launch is watched.
+  // Listening here also stops Electron's default quit-on-last-window.
+  let forwarding = false;
+  app.on('window-all-closed', () => {
+    if (!forwarding) app.quit();
+  });
 
   ipcMain.handleOnce('picker:choose', (_event, { desktopId, remember }) => {
     if (remember) setRememberedHandler(desktopId);
-    forwardToSession(desktopId, whatsappUrl);
+    forwarding = true;
+    forwardAndQuit(desktopId, whatsappUrl);
     win.close();
     return { ok: true };
   });
