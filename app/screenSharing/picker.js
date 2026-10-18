@@ -13,7 +13,18 @@ window.screenPicker.onSources((sources) => {
   for (const source of sources) {
     const button = document.createElement('button');
     button.className = 'source';
-    button.innerHTML = `<img src="${source.thumbnail}" alt=""><span>${source.name}</span>`;
+
+    // Built node by node, never via innerHTML: source.name is the title
+    // of whatever window is open on the desktop, which any app (or a web
+    // page's own <title>) controls, so it must only ever land as text.
+    const img = document.createElement('img');
+    img.src = source.thumbnail;
+    img.alt = '';
+    const name = document.createElement('span');
+    name.textContent = source.name;
+    button.appendChild(img);
+    button.appendChild(name);
+
     button.addEventListener('click', () => window.screenPicker.select(source.id));
     grid.appendChild(button);
   }
