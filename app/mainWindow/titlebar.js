@@ -60,6 +60,7 @@ function snapshot() {
       { id: 'file', label: t('menu.file') },
       { id: 'sessions', label: t('menu.sessions') },
       { id: 'view', label: t('menu.view') },
+      { id: 'help', label: t('menu.help') },
     ],
   };
 }

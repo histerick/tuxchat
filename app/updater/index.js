@@ -115,11 +115,36 @@ function startBackgroundChecks() {
 // Extra sessions are separate Electron processes launched from the same
 // installed binary — running the updater in each of them would mean up to
 // MAX_SESSIONS redundant downloads racing to write the same AppImage file.
+let running = false;
+
 function initUpdater(config) {
   if (!app.isPackaged || !isAppImage() || config.profileName !== '') return;
 
+  running = true;
   showChangelogIfJustUpdated();
   startBackgroundChecks();
 }
 
-module.exports = { initUpdater };
+// "Check for updates" in the About dialog. Only where initUpdater actually
+// started (the main profile of a packaged AppImage) is there anything to
+// check with; the caller sends everyone else to the Releases page. A
+// found update downloads and installs exactly like a background one
+// (autoDownload / autoInstallOnAppQuit above), so this only reports.
+function canCheckForUpdates() {
+  return running;
+}
+
+async function checkForUpdatesNow() {
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    if (result && result.isUpdateAvailable) {
+      return { status: 'available', version: result.updateInfo.version };
+    }
+    return { status: 'latest' };
+  } catch (err) {
+    console.error('TuxChat updater:', err && err.message ? err.message : err);
+    return { status: 'error' };
+  }
+}
+
+module.exports = { initUpdater, canCheckForUpdates, checkForUpdatesNow };

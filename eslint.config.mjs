@@ -37,6 +37,7 @@ export default [
       'app/updater/changelog-dialog.js',
       'app/sessionColor/dialog.js',
       'app/mainWindow/titlebar-renderer.js',
+      'app/about/dialog.js',
     ],
     languageOptions: {
       ecmaVersion: 2023,
@@ -59,6 +60,7 @@ export default [
       'app/updater/changelog-dialog.js',
       'app/sessionColor/dialog.js',
       'app/mainWindow/titlebar-renderer.js',
+      'app/about/dialog.js',
     ],
     languageOptions: {
       ecmaVersion: 2023,

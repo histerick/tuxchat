@@ -25,6 +25,8 @@ const es = {
     zoomIn: 'Ampliar',
     zoomOut: 'Reducir',
     fullscreen: 'Pantalla completa',
+    help: 'Ayuda',
+    about: 'Acerca de TuxChat',
   },
   tray: {
     show: 'Mostrar',
@@ -78,6 +80,8 @@ const en = {
     zoomIn: 'Zoom In',
     zoomOut: 'Zoom Out',
     fullscreen: 'Toggle Full Screen',
+    help: 'Help',
+    about: 'About TuxChat',
   },
   tray: {
     show: 'Show',
@@ -131,6 +135,8 @@ const pt = {
     zoomIn: 'Ampliar',
     zoomOut: 'Reduzir',
     fullscreen: 'Tela cheia',
+    help: 'Ajuda',
+    about: 'Sobre o TuxChat',
   },
   tray: {
     show: 'Mostrar',

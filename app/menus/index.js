@@ -4,6 +4,7 @@ const { Menu, app, ipcMain } = require('electron');
 const { openAddSessionDialog, openDeleteSessionDialog, openRenameSessionDialog, canRenameSelf } = require('../sessions');
 const { openSettingsDialog } = require('../deepLinks');
 const { openSessionColorDialog } = require('../sessionColor');
+const { openAboutDialog } = require('../about');
 const { getWhatsAppContents } = require('../mainWindow');
 const { t } = require('../i18n');
 
@@ -45,6 +46,7 @@ function buildTemplate(win) {
       { type: 'separator' },
       { label: t('menu.fullscreen'), accelerator: 'F11', click: () => win.setFullScreen(!win.isFullScreen()) },
     ],
+    help: [{ label: t('menu.about'), click: () => openAboutDialog(win) }],
   };
 }
 
