@@ -64,6 +64,10 @@ window.TUXCHAT_STRINGS = {
       noNotes: 'No hay notas de esta versión.',
       close: 'Cerrar',
     },
+    screenPicker: {
+      windowTitle: 'Compartir pantalla',
+      heading: 'Elegí qué compartir',
+    },
   },
   en: {
     addDialog: {
@@ -123,6 +127,74 @@ window.TUXCHAT_STRINGS = {
       subheading: "Here's what changed:",
       noNotes: 'No release notes for this version.',
       close: 'Close',
+    },
+    screenPicker: {
+      windowTitle: 'Share screen',
+      heading: 'Choose what to share',
+    },
+  },
+  pt: {
+    addDialog: {
+      windowTitle: 'Adicionar sessão',
+      heading: 'Nova sessão isolada do TuxChat',
+      count: (count, max) => `Sessões configuradas: ${count}/${max}`,
+      namePlaceholder: 'Ex.: Pessoal, Trabalho, Família',
+      success: 'Pronto! Abrindo a sessão...',
+      cancel: 'Cancelar',
+      create: 'Criar',
+    },
+    deleteDialog: {
+      windowTitle: 'Excluir sessão',
+      heading: 'Excluir sessão',
+      description:
+        'Apaga o login, as configurações e os dados salvos localmente da sessão escolhida, neste computador. Não afeta sua conta do WhatsApp nem os arquivos já compartilhados ou baixados, e não pode ser desfeito.',
+      empty: 'Não há sessões adicionais para excluir.',
+      select: 'Selecionar',
+      cancel: 'Cancelar',
+      delete: 'Excluir',
+    },
+    renameDialog: {
+      windowTitle: 'Renomear sessão',
+      heading: 'Renomear sessão',
+      hint: 'Máximo de 25 caracteres.',
+      cancel: 'Cancelar',
+      confirm: 'Renomear',
+      mainCantRename: 'A sessão principal não pode ser renomeada por aqui.',
+    },
+    colorDialog: {
+      windowTitle: 'Cor da sessão',
+      heading: 'Cor da sessão',
+      hint: 'Colore a barra de título e o ícone, para diferenciar esta conta das outras.',
+      none: 'Sem cor',
+      close: 'Fechar',
+    },
+    linksSettingsDialog: {
+      windowTitle: 'Links do WhatsApp',
+      heading: 'Links do WhatsApp (whatsapp://)',
+      description:
+        'Escolha qual sessão abre os links "whatsapp://" que chegam de outros apps. Se você não salvar nenhuma, vamos perguntar toda vez que um link chegar (enquanto houver mais de uma sessão).',
+      savedSession: (name) => `Sessão salva: ${name}`,
+      noSavedSession: 'Nenhuma sessão salva: vamos perguntar toda vez que um link chegar (se houver mais de uma sessão).',
+      forget: 'Esquecer salva',
+      save: 'Salvar',
+      close: 'Fechar',
+    },
+    linkPicker: {
+      windowTitle: 'Abrir link do WhatsApp',
+      heading: 'Com qual sessão abrir esta conversa?',
+      remember: 'Lembrar esta escolha para os próximos links',
+      open: 'Abrir',
+    },
+    changelogDialog: {
+      windowTitle: 'Novidades do TuxChat',
+      heading: (version) => `O TuxChat foi atualizado para ${version}`,
+      subheading: 'Veja o que mudou:',
+      noNotes: 'Não há notas desta versão.',
+      close: 'Fechar',
+    },
+    screenPicker: {
+      windowTitle: 'Compartilhar tela',
+      heading: 'Escolha o que compartilhar',
     },
   },
 };

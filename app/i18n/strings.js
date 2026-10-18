@@ -111,4 +111,57 @@ const en = {
   },
 };
 
-module.exports = { es, en };
+const pt = {
+  common: {
+    cancel: 'Cancelar',
+  },
+  menu: {
+    file: 'Arquivo',
+    quit: 'Sair',
+    sessions: 'Sessões',
+    addSession: 'Adicionar sessão...',
+    renameSession: 'Renomear sessão...',
+    deleteSession: 'Excluir sessão...',
+    sessionColor: 'Cor da sessão...',
+    whatsappLinks: 'Links do WhatsApp...',
+    view: 'Exibir',
+    reload: 'Recarregar',
+    toggleDevTools: 'Ferramentas de desenvolvedor',
+    resetZoom: 'Tamanho real',
+    zoomIn: 'Ampliar',
+    zoomOut: 'Reduzir',
+    fullscreen: 'Tela cheia',
+  },
+  tray: {
+    show: 'Mostrar',
+  },
+  contextMenu: {
+    copyLink: 'Copiar link',
+    openLink: 'Abrir no navegador',
+  },
+  sessions: {
+    mainLabel: 'TuxChat (principal)',
+    desktopComment: (name) => `WhatsApp Web (sessão "${name}", projeto TuxChat)`,
+    errors: {
+      emptyName: 'Digite um nome para a sessão.',
+      newlineName: 'O nome não pode ter quebras de linha.',
+      tooLong: (max) => `Máximo de ${max} caracteres.`,
+      invalidSlug: 'Esse nome não gera um identificador válido, tente outro.',
+      duplicate: (name) => `Já existe uma sessão "${name}".`,
+      limitReached: (max) => `Limite de ${max} sessões atingido.`,
+      createFailed: (msg) => `Não foi possível criar a sessão: ${msg}`,
+      invalidSession: 'Sessão inválida.',
+      notFound: 'Essa sessão não existe mais.',
+      deleteFailed: (msg) => `Não foi possível excluir a sessão: ${msg}`,
+      inUse: (name) => `Já existe outra sessão chamada "${name}".`,
+      renameFailed: (msg) => `Não foi possível renomear a sessão: ${msg}`,
+      mainCantRename: 'A sessão principal não pode ser renomeada por aqui.',
+    },
+  },
+  router: {
+    desktopName: 'TuxChat (links)',
+    desktopComment: 'Abre links whatsapp:// com uma sessão do TuxChat',
+  },
+};
+
+module.exports = { es, en, pt };

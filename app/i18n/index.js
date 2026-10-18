@@ -1,15 +1,20 @@
 'use strict';
 
 const { app } = require('electron');
-const { es, en } = require('./strings');
+const { es, en, pt } = require('./strings');
 
-// US English by default; Latin American Spanish only when the OS locale
-// itself is Spanish. Anything else (fr, de, pt, ...) also falls back to
-// English rather than guessing — matches how most desktop apps behave
-// when they don't ship a translation for the exact system locale.
+// US English by default; Latin American Spanish or Brazilian Portuguese
+// only when the OS locale itself is Spanish or Portuguese (any region:
+// pt-PT gets the Brazilian text too). Anything else (fr, de, ...) also
+// falls back to English rather than guessing — matches how most desktop
+// apps behave when they don't ship a translation for the exact system
+// locale.
+const LOCALES = ['es', 'pt'];
+
 function detectLocale() {
   try {
-    return app.getLocale().toLowerCase().startsWith('es') ? 'es' : 'en';
+    const locale = app.getLocale().toLowerCase();
+    return LOCALES.find((code) => locale.startsWith(code)) || 'en';
   } catch {
     return 'en';
   }
@@ -25,7 +30,7 @@ function currentLocale() {
 }
 
 function dict() {
-  return currentLocale() === 'es' ? es : en;
+  return { es, en, pt }[currentLocale()] || en;
 }
 
 // Dot-path lookup, e.g. t('menu.addSession') or, for parametrized strings,

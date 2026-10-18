@@ -1,4 +1,5 @@
-const LOCALE = new URLSearchParams(location.search).get('locale') === 'es' ? 'es' : 'en';
+const REQUESTED_LOCALE = new URLSearchParams(location.search).get('locale');
+const LOCALE = ['es', 'pt'].includes(REQUESTED_LOCALE) ? REQUESTED_LOCALE : 'en';
 const L = window.TUXCHAT_STRINGS[LOCALE].colorDialog;
 
 document.documentElement.lang = LOCALE;

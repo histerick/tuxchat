@@ -3,7 +3,7 @@
 ![License](https://img.shields.io/github/license/histerick/tuxchat)
 ![Latest release](https://img.shields.io/github/v/release/histerick/tuxchat)
 
-**English** · [Español](README.es.md)
+🇬🇧 **English** · 🇪🇸 [Español](README.es.md) · 🇧🇷 [Português](README.pt.md)
 
 Unofficial WhatsApp Web desktop client for Linux (Electron), with full
 voice/video call and screen-share support, multiple isolated sessions

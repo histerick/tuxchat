@@ -3,7 +3,7 @@
 ![License](https://img.shields.io/github/license/histerick/tuxchat)
 ![Latest release](https://img.shields.io/github/v/release/histerick/tuxchat)
 
-[English](README.md) · **Español**
+🇬🇧 [English](README.md) · 🇪🇸 **Español** · 🇧🇷 [Português](README.pt.md)
 
 Cliente de escritorio no oficial de WhatsApp Web para Linux (Electron), con
 soporte completo de llamadas/video y screen share, múltiples sesiones

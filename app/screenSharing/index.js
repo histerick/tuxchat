@@ -2,6 +2,7 @@
 
 const { BrowserWindow, desktopCapturer, ipcMain } = require('electron');
 const path = require('node:path');
+const { currentLocale } = require('../i18n');
 
 // There is no OS-level picker to delegate to under X11 (confirmed by
 // checking teams-for-linux's own ADR on this: useSystemPicker only works
@@ -15,7 +16,6 @@ function openPicker(sources) {
       resizable: false,
       minimizable: false,
       maximizable: false,
-      title: 'Compartir pantalla',
       webPreferences: {
         preload: path.join(__dirname, 'picker-preload.js'),
         contextIsolation: true,
@@ -39,7 +39,7 @@ function openPicker(sources) {
     ipcMain.on('screen-picker:selected', onSelected);
     picker.on('closed', () => finish(null));
 
-    picker.loadFile(path.join(__dirname, 'picker.html')).then(() => {
+    picker.loadFile(path.join(__dirname, 'picker.html'), { query: { locale: currentLocale() } }).then(() => {
       picker.webContents.send(
         'screen-picker:sources',
         sources.map((s) => ({ id: s.id, name: s.name, thumbnail: s.thumbnail.toDataURL() }))
