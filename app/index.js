@@ -14,6 +14,7 @@ const { registerSelfContext } = require('./sessions');
 const { initSessionColor, registerSessionColor } = require('./sessionColor');
 const { ensureRouterRegistered, extractDeepLinkArg, translateToWebUrl } = require('./deepLinks');
 const { initUpdater } = require('./updater');
+const { initLogger } = require('./logger');
 
 function isWaylandSession() {
   return process.env.XDG_SESSION_TYPE === 'wayland' || Boolean(process.env.WAYLAND_DISPLAY);
@@ -117,6 +118,7 @@ if (needsX11Relaunch) {
   // session named "Router" would slugify to desktopId "tuxchat-router"
   // and its --user-data-dir would collide with this one otherwise.
   app.setPath('userData', path.join(app.getPath('home'), '.config', 'tuxchat_router'));
+  initLogger('router');
   app
     .whenReady()
     .then(() => require('./router').run(process.argv))
@@ -126,6 +128,7 @@ if (needsX11Relaunch) {
     });
 } else {
   const config = getConfig();
+  initLogger(config.profileName || 'principal');
 
   // A whatsapp:// link forwarded from the router (see deepLinks/forward.js)
   // arrives as a plain argv item, same on cold start as in second-instance

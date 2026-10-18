@@ -4,6 +4,7 @@ const { app, BrowserWindow, clipboard, ipcMain, shell } = require('electron');
 const path = require('node:path');
 const { currentLocale } = require('../i18n');
 const { canCheckForUpdates, checkForUpdatesNow } = require('../updater');
+const { logPath } = require('../logger');
 
 const REPO_URL = 'https://github.com/histerick/tuxchat';
 
@@ -38,6 +39,7 @@ function technicalInfo() {
     node: process.versions.node,
     platform: `${process.platform} ${process.arch}`,
     displayServer: displayServer(),
+    log: logPath() || '-',
   };
 }
 
@@ -52,6 +54,7 @@ function technicalInfoText() {
     `Node ${info.node}`,
     `Platform: ${info.platform}`,
     `Display server: ${info.displayServer}`,
+    `Log: ${info.log}`,
   ].join('\n');
 }
 
@@ -92,7 +95,7 @@ function openAboutDialog(parent) {
     parent,
     modal: true,
     width: 440,
-    height: 720,
+    height: 768,
     useContentSize: true,
     resizable: false,
     minimizable: false,

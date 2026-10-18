@@ -44,6 +44,7 @@ window.aboutDialog.info().then((info) => {
   addTechRow('Node', info.node);
   addTechRow(L.platform, info.platform);
   addTechRow(L.displayServer, info.displayServer);
+  addTechRow(L.log, info.log);
 });
 
 const copyBtn = document.getElementById('copy-info');
